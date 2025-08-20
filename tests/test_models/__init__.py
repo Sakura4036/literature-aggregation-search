@@ -1,0 +1,1 @@
+"""Tests for literature data models and schemas."""

@@ -1,0 +1,40 @@
+{
+    "messages": [
+        {
+            "status": "ok",
+            "category": "all"
+        }
+    ],
+    "collection": [
+        {
+            "title": "On the Utility of Virtual Staining for Downstream Applications as it relates to Task Network Capacity",
+            "authors": "Sengupta, S.; Xu, J.; Nguyen, P.; Brooks, F. J.; Liu, Y.; Anastasio, M. A.",
+            "author_corresponding": "Mark A Anastasio",
+            "author_corresponding_institution": "University of Illinois Urbana-Champaign",
+            "doi": "10.1101/2025.08.04.668552",
+            "date": "2025-08-06",
+            "version": "1",
+            "type": "new results",
+            "license": "cc_by",
+            "category": "bioinformatics",
+            "jatsxml": "https://www.biorxiv.org/content/early/2025/08/06/2025.08.04.668552.source.xml",
+            "abstract": "Virtual staining, or in-silico-labeling, has been proposed to computationally generate synthetic fluorescence images from label-free images by use of deep learning-based image-to-image translation networks. In most reported studies, virtually stained images have been assessed only using traditional image quality measures such as structural similarity or signal-to-noise ratio. However, in biomedical imaging, images are typically acquired to facilitate an image-based inference, which we refer to as a downstream biological or clinical task. This study systematically investigates the utility of virtual staining for facilitating clinically relevant downstream tasks (like segmentation or classification) with consideration of the capacity of the deep neural networks employed to perform the tasks. Comprehensive empirical evaluations were conducted using biological datasets, assessing task performance by use of label-free, virtually stained, and ground truth fluorescence images. The results demonstrated that the utility of virtual staining is largely dependent on the ability of the segmentation or classification task network to extract meaningful task-relevant information, which is related to the concept of network capacity. Examples are provided in which virtual staining does not improve, or even degrades, segmentation or classification performance when the capacity of the associated task network is sufficiently large. The results demonstrate that task network capacity should be considered when deciding whether to perform virtual staining.",
+            "funder": [
+                {
+                    "name": "National Institutes of Health",
+                    "id": "https://ror.org/01cwqze88",
+                    "id-type": "ROR",
+                    "award": "P41EB031772;R01EB034249;T32EB019944;"
+                },
+                {
+                    "name": "National Cancer Institute",
+                    "id": "https://ror.org/040gcmg81",
+                    "id-type": "ROR",
+                    "award": "R01CA232593;R01CA254112;"
+                }
+            ],
+            "published": "NA",
+            "server": "bioRxiv"
+        }
+    ]
+}

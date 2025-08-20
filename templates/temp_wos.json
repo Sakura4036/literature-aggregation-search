@@ -1,0 +1,113 @@
+{
+    "metadata": {
+        "total": 2,
+        "page": 1,
+        "limit": 10
+    },
+    "hits": [
+        {
+            "uid": "WOS:A1993MM96800012",
+            "title": "'EPITAFIO'",
+            "types": [
+                "Poetry"
+            ],
+            "sourceTypes": [
+                "Poetry"
+            ],
+            "source": {
+                "sourceTitle": "CUADERNOS HISPANOAMERICANOS",
+                "publishYear": 1993,
+                "publishMonth": "NOV",
+                "issue": "521",
+                "pages": {
+                    "range": "125-125",
+                    "begin": "125",
+                    "end": "125",
+                    "count": 1
+                }
+            },
+            "names": {
+                "authors": [
+                    {
+                        "displayName": "TOMLINSON, C",
+                        "wosStandard": "TOMLINSON, C",
+                        "researcherId": "GGU-9939-2022"
+                    }
+                ]
+            },
+            "links": {
+                "record": "https://www.webofscience.com/api/gateway?GWVersion=2&SrcApp=&SrcAuth=WosAPI&KeyUT=WOS:A1993MM96800012&DestLinkType=FullRecord&DestApp=WOS"
+            },
+            "citations": [
+                {
+                    "db": "WOS",
+                    "count": 0
+                }
+            ],
+            "identifiers": {
+                "issn": "1131-6438"
+            },
+            "keywords": {
+                "authorKeywords": [
+                ]
+            }
+        },
+        {
+            "uid": "WOS:000222526200005",
+            "title": "Mapping the land of 'I-don't remember': For a re-evaluation of La 'Historia oficial'",
+            "types": [
+                "Article"
+            ],
+            "sourceTypes": [
+                "Article"
+            ],
+            "source": {
+                "sourceTitle": "BULLETIN OF HISPANIC STUDIES",
+                "publishYear": 2004,
+                "publishMonth": "APR",
+                "volume": "81",
+                "issue": "2",
+                "pages": {
+                    "range": "215-228",
+                    "begin": "215",
+                    "end": "228",
+                    "count": 14
+                }
+            },
+            "names": {
+                "authors": [
+                    {
+                        "displayName": "Tomlinson, E",
+                        "wosStandard": "Tomlinson, E",
+                        "researcherId": "AAG-1344-2019"
+                    }
+                ],
+                "bookEditors": [
+                    {
+                        "displayName": "Walker, J. M."
+                    }
+                ]
+            },
+            "links": {
+                "record": "https://www.webofscience.com/api/gateway?GWVersion=2&SrcApp=&SrcAuth=WosAPI&KeyUT=WOS:000222526200005&DestLinkType=FullRecord&DestApp=WOS",
+                "citingArticles": "https://www.webofscience.com/api/gateway?GWVersion=2&SrcApp=&SrcAuth=WosAPI&KeyUT=WOS:000222526200005&DestLinkType=CitingArticles&DestApp=WOS",
+                "references": "https://www.webofscience.com/api/gateway?GWVersion=2&SrcApp=&SrcAuth=WosAPI&KeyUT=WOS:000222526200005&DestLinkType=CitedReferences&DestApp=WOS",
+                "related": "https://www.webofscience.com/api/gateway?GWVersion=2&SrcApp=&SrcAuth=WosAPI&KeyUT=WOS:000222526200005&DestLinkType=RelatedRecords&DestApp=WOS"
+            },
+            "citations": [
+                {
+                    "db": "WOS",
+                    "count": 3
+                }
+            ],
+            "identifiers": {
+                "doi": "10.3828/bhs.81.2.5",
+                "issn": "1475-3839"
+            },
+            "keywords": {
+                "authorKeywords": [
+                ]
+            }
+        }
+    ]
+}

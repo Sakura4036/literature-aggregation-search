@@ -1,0 +1,181 @@
+[
+  {
+    "pmid": "32747588",
+    "title": "Alkaline Phosphatase.",
+    "medline_citation_status": "MEDLINE",
+    "medline_citation_owner": "NLM",
+    "indexing_method": "Manual",
+    "journal_title": "Cold Spring Harbor protocols",
+    "journal_iso_abbreviation": "Cold Spring Harb Protoc",
+    "issn_print": "",
+    "issn_electronic": "1559-6095",
+    "volume": "2020",
+    "issue": "8",
+    "pub_model": "Electronic",
+    "journal_pub_date": {
+      "year": "2020",
+      "month": "Aug",
+      "day": "03",
+      "season": "",
+      "medline_date": ""
+    },
+    "authors": [
+      {
+        "last_name": "Green",
+        "fore_name": "Michael R",
+        "initials": "MR",
+        "valid_yn": "Y",
+        "affiliations": []
+      },
+      {
+        "last_name": "Sambrook",
+        "fore_name": "Joseph",
+        "initials": "J",
+        "valid_yn": "Y",
+        "affiliations": []
+      }
+    ],
+    "abstract": {
+      "text": "Several types of alkaline phosphatases (or alkaline phosphomonoesterase) are commonly used in molecular cloning, including bacterial alkaline phosphatase (BAP) and calf intestinal alkaline phosphatase (CIP, CIAP, or CAP). Similar enzymes isolated from more esoteric cold-blooded organisms (e.g., SAP from shrimp) have become available in recent years and have the advantage of being easier to inactivate than BAP or CIP at the end of dephosphorylation reactions. The uses and properties of these enzymes are introduced here.",
+      "structured": []
+    },
+    "date_completed": {
+      "year": "2021",
+      "month": "07",
+      "day": "29",
+      "hour": "",
+      "minute": "",
+      "iso_date": "2021-07-29"
+    },
+    "date_revised": {
+      "year": "2021",
+      "month": "07",
+      "day": "29",
+      "hour": "",
+      "minute": "",
+      "iso_date": "2021-07-29"
+    },
+    "electronic_pub_date": {
+      "year": "2020",
+      "month": "08",
+      "day": "03",
+      "hour": "",
+      "minute": "",
+      "iso_date": "2020-08-03"
+    },
+    "pubmed_pub_dates": [
+      {
+        "year": "2020",
+        "month": "8",
+        "day": "5",
+        "hour": "6",
+        "minute": "0",
+        "iso_date": "2020-08-05T06:00:00",
+        "pub_status": "entrez"
+      },
+      {
+        "year": "2020",
+        "month": "8",
+        "day": "5",
+        "hour": "6",
+        "minute": "0",
+        "iso_date": "2020-08-05T06:00:00",
+        "pub_status": "pubmed"
+      },
+      {
+        "year": "2021",
+        "month": "7",
+        "day": "30",
+        "hour": "6",
+        "minute": "0",
+        "iso_date": "2021-07-30T06:00:00",
+        "pub_status": "medline"
+      }
+    ],
+    "identifiers": {
+      "pubmed": "32747588",
+      "doi": "10.1101/pdb.top100768",
+      "pii": "2020/8/pdb.top100768",
+      "elocation_doi": "10.1101/pdb.top100768"
+    },
+    "mesh_headings": [
+      {
+        "descriptor_name": "Alkaline Phosphatase",
+        "descriptor_ui": "D000469",
+        "major_topic_yn": "N",
+        "qualifiers": [
+          {
+            "qualifier_name": "isolation & purification",
+            "qualifier_ui": "Q000302",
+            "major_topic_yn": "N"
+          },
+          {
+            "qualifier_name": "metabolism",
+            "qualifier_ui": "Q000378",
+            "major_topic_yn": "Y"
+          }
+        ]
+      },
+      {
+        "descriptor_name": "Animals",
+        "descriptor_ui": "D000818",
+        "major_topic_yn": "N",
+        "qualifiers": []
+      },
+      {
+        "descriptor_name": "Bacteria",
+        "descriptor_ui": "D001419",
+        "major_topic_yn": "N",
+        "qualifiers": [
+          {
+            "qualifier_name": "enzymology",
+            "qualifier_ui": "Q000201",
+            "major_topic_yn": "N"
+          }
+        ]
+      },
+      {
+        "descriptor_name": "Cattle",
+        "descriptor_ui": "D002417",
+        "major_topic_yn": "N",
+        "qualifiers": []
+      },
+      {
+        "descriptor_name": "Decapoda",
+        "descriptor_ui": "D033364",
+        "major_topic_yn": "N",
+        "qualifiers": [
+          {
+            "qualifier_name": "enzymology",
+            "qualifier_ui": "Q000201",
+            "major_topic_yn": "N"
+          }
+        ]
+      },
+      {
+        "descriptor_name": "Humans",
+        "descriptor_ui": "D006801",
+        "major_topic_yn": "N",
+        "qualifiers": []
+      },
+      {
+        "descriptor_name": "Phosphorylation",
+        "descriptor_ui": "D010766",
+        "major_topic_yn": "N",
+        "qualifiers": []
+      }
+    ],
+    "publication_types": [
+      {
+        "type": "Journal Article",
+        "ui": "D016428"
+      }
+    ],
+    "grants": [],
+    "references": [],
+    "language": "eng",
+    "start_page": "100768",
+    "end_page": "",
+    "medline_pgn": "100768"
+  }
+]
