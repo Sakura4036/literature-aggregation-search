@@ -1,10 +1,12 @@
 import logging
 import math
-from typing import Generator, List, Dict
+from typing import Generator, List, Dict, Tuple, Any
 import arxiv
 from urllib.parse import urlencode
 from .utils import year_split
-from .response_formatter import ResponseFormatter
+from .base_engine import BaseSearchEngine, NetworkError, FormatError
+from ..models.schemas import LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, IdentifierSchema, CategorySchema
+from ..models.enums import IdentifierType, VenueType, CategoryType
 
 logger = logging.getLogger(__name__)
 
@@ -138,24 +140,28 @@ class ArxivClient(arxiv.Client):
         return url
 
 
-class ArxivSearchAPI:
-    # base_url = "http://export.arxiv.org/api/{method_name}?{parameters}"
-    # query_url = 'http://export.arxiv.org/api/query?'
+class ArxivSearchAPI(BaseSearchEngine):
     """
-    query prefix
-    ti: Title
-    au: Author
-    abs: Abstract
-    co: Comment
-    jr: Journal Reference
-    cat: Subject Category
-    rn: Report Number
-    id: Id (use id_list instead)
-    all: All of the above
+    ArXiv search API implementation inheriting from BaseSearchEngine.
+    
+    Provides search functionality for ArXiv preprint server with unified interface.
+    
+    Query prefixes supported:
+    - ti: Title
+    - au: Author
+    - abs: Abstract
+    - co: Comment
+    - jr: Journal Reference
+    - cat: Subject Category
+    - rn: Report Number
+    - id: Id (use id_list instead)
+    - all: All of the above
     """
 
     def __init__(self):
+        super().__init__()
         self.client = ArxivClient()
+        self.max_results_limit = 2000  # ArXiv API limit
 
     def _query(self, query: str = '', id_list=None, start: int = 0, max_results: int = 10,
                sort_by: str = 'relevance', sort_order: str = 'descending', ):
@@ -205,40 +211,240 @@ class ArxivSearchAPI:
             parsed_results.append(parsed_result)
         return parsed_results
 
-    def search(self, query: str = None, id_list: list[str] = None, num_results: int = 10,
-               sort_by: str = 'relevance', sort_order: str = 'descending', year: str = None):
+    def get_source_name(self) -> str:
+        """Get the name of the data source."""
+        return 'arxiv'
+    
+    def _search(self, query: str, **kwargs) -> Tuple[List[Dict], Dict]:
         """
-        Query the arXiv API and return the results as a list of dictionaries.
-        :param query: Full-text query. Optional, but if this is present, id_list is ignored.
-        :param id_list: List of arXiv IDs. Optional, but if this is present, search_query is ignored.
-        :param num_results: The maximum number of results to return. Default is 10. Maximum is 2000.
-        :param sort_by: The field by which to sort results. Default is 'relevance'. Other valid values are 'lastUpdatedDate', 'submittedDate'.
-        :param sort_order: The sort order. Default is 'descending'. Other valid values are 'ascending'.
-        :param year: The year of publication. Optional. If present, the search will be restricted to this year.
-        :return: A list of dictionaries containing the results of the query, and a dictionary containing metadata.
+        Execute raw search against ArXiv API.
+        
+        Args:
+            query: Search query string
+            **kwargs: Additional search parameters including:
+                - num_results: Number of results to return
+                - id_list: List of ArXiv IDs to search
+                - sort_by: Sort criterion ('relevance', 'lastUpdatedDate', 'submittedDate')
+                - sort_order: Sort order ('ascending', 'descending')
+                - year: Year filter
+                
+        Returns:
+            Tuple[List[Dict], Dict]: Raw results and metadata
         """
-        if num_results == 0:
-            return [], {}
+        try:
+            # Extract parameters
+            num_results = kwargs.get('num_results', self.default_results)
+            id_list = kwargs.get('id_list', [])
+            sort_by = kwargs.get('sort_by', 'relevance')
+            sort_order = kwargs.get('sort_order', 'descending')
+            year = kwargs.get('year')
+            
+            if num_results == 0:
+                return [], {'query': query}
 
-        # 构建完整的search_query，包含年份条件
-        search_query = query if query else ''
-        if year:
-            start, end = year_split(year)
-            if start == end:
-                year = "{}010101600 TO {}01010600".format(start, int(end) + 1)
-            else:
-                year = "{}010101600 TO {}01010600".format(start, end)
-            # 将年份条件作为search_query的一部分
-            search_query = f"{search_query}&submittedDate:[{year}]" if search_query else f"submittedDate:[{year}]"
+            # Build complete search query including year conditions
+            search_query = query if query else ''
+            if year:
+                start, end = year_split(year)
+                if start == end:
+                    year_filter = "{}010101600 TO {}01010600".format(start, int(end) + 1)
+                else:
+                    year_filter = "{}010101600 TO {}01010600".format(start, int(end) + 1)
+                # Add year condition to search query
+                search_query = f"{search_query}&submittedDate:[{year_filter}]" if search_query else f"submittedDate:[{year_filter}]"
 
-        results = self._query(search_query, id_list, max_results=num_results, sort_by=sort_by,
-                              sort_order=sort_order)
-        parsed_results = self._parse(results)
+            # Execute query
+            results = self._query(search_query, id_list, max_results=num_results, 
+                                sort_by=sort_by, sort_order=sort_order)
+            
+            # Parse results
+            parsed_results = self._parse(results)
 
-        # Format the results
-        formatted_results = [ResponseFormatter.format(result, 'arxiv') for result in parsed_results]
-
-        metadata = {
-            'query': search_query,
+            metadata = {
+                'query': search_query,
+                'original_query': query,
+                'year_filter': year,
+                'sort_by': sort_by,
+                'sort_order': sort_order,
+                'requested_results': num_results
+            }
+            
+            return parsed_results, metadata
+            
+        except Exception as e:
+            self.logger.error(f"Error during ArXiv search: {e}")
+            raise NetworkError(f"ArXiv search failed: {e}") from e
+    
+    def _response_format(self, results: List[Dict], source: str) -> List[Dict]:
+        """
+        Format raw ArXiv results into standardized LiteratureSchema format.
+        
+        Args:
+            results: Raw search results from ArXiv API
+            source: Data source name ('arxiv')
+            
+        Returns:
+            List[Dict]: Formatted results conforming to LiteratureSchema
+        """
+        formatted_results = []
+        
+        for item in results:
+            try:
+                # Create article schema
+                article = ArticleSchema(
+                    primary_doi=item.get('doi'),
+                    title=item.get('title', ''),
+                    abstract=item.get('abstract'),
+                    publication_year=item.get('year'),
+                    publication_date=item.get('published_date'),
+                    updated_date=item.get('updated_date'),
+                    is_open_access=True,  # ArXiv is open access
+                    open_access_url=item.get('pdf_url')
+                )
+                
+                # Create authors
+                authors = []
+                for i, author_name in enumerate(item.get('authors', [])):
+                    if author_name and author_name.strip():
+                        authors.append(AuthorSchema(
+                            full_name=author_name.strip(),
+                            author_order=i + 1
+                        ))
+                
+                # Create venue schema
+                venue = VenueSchema(
+                    venue_name=item.get('journal') or 'arXiv',
+                    venue_type=VenueType.PREPRINT_SERVER
+                )
+                
+                # Create identifiers
+                identifiers = []
+                
+                # Add DOI if available
+                doi = item.get('doi')
+                if doi and str(doi).strip():
+                    identifiers.append(IdentifierSchema(
+                        identifier_type=IdentifierType.DOI,
+                        identifier_value=str(doi).strip(),
+                        is_primary=True
+                    ))
+                
+                # Add ArXiv ID
+                arxiv_id = item.get('arxiv_id')
+                if arxiv_id and str(arxiv_id).strip():
+                    identifiers.append(IdentifierSchema(
+                        identifier_type=IdentifierType.ARXIV_ID,
+                        identifier_value=str(arxiv_id).strip(),
+                        is_primary=not bool(item.get('doi'))  # Primary if no DOI
+                    ))
+                
+                # Create categories from ArXiv categories
+                categories = []
+                for category in item.get('categories', []):
+                    if category and category.strip():
+                        categories.append(CategorySchema(
+                            category_name=category.strip(),
+                            category_type=CategoryType.ARXIV_CATEGORY
+                        ))
+                
+                # Create literature schema
+                literature = LiteratureSchema(
+                    article=article,
+                    authors=authors,
+                    venue=venue,
+                    identifiers=identifiers,
+                    categories=categories,
+                    source_specific={
+                        'source': source,
+                        'raw_data': item,
+                        'arxiv_url': item.get('url'),
+                        'pdf_url': item.get('pdf_url'),
+                        'categories': item.get('categories', [])
+                    }
+                )
+                
+                # Validate the schema
+                is_valid, errors = literature.validate()
+                if not is_valid:
+                    self.logger.warning(f"Schema validation failed for ArXiv item: {errors}")
+                    # Skip invalid items if they have critical errors (like missing title)
+                    if any("title is required" in error for error in errors):
+                        continue
+                
+                formatted_results.append(literature.to_dict())
+                
+            except Exception as e:
+                self.logger.error(f"Error formatting ArXiv result: {e}")
+                # Skip malformed results and continue processing other results
+                continue
+        
+        return formatted_results
+    
+    def validate_params(self, query: str, **kwargs) -> bool:
+        """
+        Validate ArXiv-specific search parameters.
+        
+        Args:
+            query: Search query string
+            **kwargs: Additional parameters
+            
+        Returns:
+            bool: True if parameters are valid
+        """
+        # Call parent validation first
+        if not super().validate_params(query, **kwargs):
+            return False
+        
+        # ArXiv-specific validation
+        num_results = kwargs.get('num_results', self.default_results)
+        if num_results > self.max_results_limit:
+            self.logger.error(f"num_results exceeds ArXiv limit of {self.max_results_limit}")
+            return False
+        
+        # Validate sort parameters
+        sort_by = kwargs.get('sort_by', 'relevance')
+        valid_sort_by = ['relevance', 'lastUpdatedDate', 'submittedDate']
+        if sort_by not in valid_sort_by:
+            self.logger.error(f"Invalid sort_by: {sort_by}. Must be one of {valid_sort_by}")
+            return False
+        
+        sort_order = kwargs.get('sort_order', 'descending')
+        valid_sort_order = ['ascending', 'descending']
+        if sort_order not in valid_sort_order:
+            self.logger.error(f"Invalid sort_order: {sort_order}. Must be one of {valid_sort_order}")
+            return False
+        
+        # Validate id_list if provided
+        id_list = kwargs.get('id_list', [])
+        if id_list and not isinstance(id_list, list):
+            self.logger.error("id_list must be a list")
+            return False
+        
+        return True
+    
+    # Backward compatibility method
+    def search_legacy(self, query: str = None, id_list: list[str] = None, num_results: int = 10,
+                     sort_by: str = 'relevance', sort_order: str = 'descending', year: str = None):
+        """
+        Legacy search method for backward compatibility.
+        
+        This method maintains the original interface while using the new base class architecture.
+        """
+        # Convert parameters to new format
+        kwargs = {
+            'num_results': num_results,
+            'id_list': id_list or [],
+            'sort_by': sort_by,
+            'sort_order': sort_order,
+            'year': year
         }
-        return formatted_results, metadata
+        
+        # Use the new search method
+        formatted_results, metadata = self.search(query or '', **kwargs)
+        
+        # Convert back to legacy format if needed
+        legacy_results = []
+        for result in formatted_results:
+            legacy_results.append(result['source_specific']['raw_data'])
+        
+        return legacy_results, metadata

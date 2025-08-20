@@ -17,10 +17,7 @@
   - 编写基类的单元测试
   - _需求: 需求1_
 
-- [-] 3. 重构PubMed搜索API
-
-
-
+- [x] 3. 重构PubMed搜索API
   - 修改PubmedSearchAPI继承BaseSearchEngine
   - 重构现有的search()方法为_search()方法
   - 实现_response_format()方法将原始数据转换为LiteratureSchema,实现字段映射和数据类型转换逻辑
@@ -28,7 +25,7 @@
   - 编写重构后的API测试
   - _需求: 需求1, 需求3, 需求4_
 
-- [ ] 4. 重构ArXiv搜索API
+- [x] 4. 重构ArXiv搜索API
   - 修改ArxivSearchAPI继承BaseSearchEngine
   - 重构现有的search()方法为_search()方法
   - 实现_response_format()方法将原始数据转换为LiteratureSchema,实现字段映射和数据类型转换逻辑
