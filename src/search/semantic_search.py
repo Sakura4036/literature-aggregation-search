@@ -9,8 +9,8 @@ from datetime import datetime
 from typing import Dict, List, Tuple, Any, Optional
 
 from .base_engine import BaseSearchEngine, NetworkError, FormatError
-from ..models.schemas import LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, PublicationSchema, IdentifierSchema, CategorySchema, PublicationTypeSchema
-from ..models.enums import IdentifierType, VenueType, CategoryType, PublicationTypeSource
+from src.models.schemas import LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, PublicationSchema, IdentifierSchema, CategorySchema, PublicationTypeSchema
+from src.models.enums import IdentifierType, VenueType, CategoryType, PublicationTypeSource
 
 
 logger = logging.getLogger(__name__)
@@ -164,6 +164,9 @@ class SemanticBulkSearchAPI(BaseSearchEngine):
         return True
     
     def check_query(self, query: str):
+        """
+        replace grammar in query
+        """
         for key, value in self.switch_grammar.items():
             query = query.replace(key, value)
         return f"({query})"
@@ -323,7 +326,7 @@ class SemanticBulkSearchAPI(BaseSearchEngine):
             self.logger.error(f"Error in Semantic Scholar search: {e}")
             raise NetworkError(f"Semantic Scholar search failed: {e}")
     
-    def _response_format(self, results: List[Dict], source: str) -> List[Dict]:
+    def _response_format(self, results: List[Dict]) -> List[Dict]:
         """
         Format raw Semantic Scholar results into LiteratureSchema format.
         

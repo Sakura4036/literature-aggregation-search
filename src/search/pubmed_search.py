@@ -7,8 +7,8 @@ from typing import Dict, List, Tuple, Any, Optional
 
 from .base_engine import BaseSearchEngine, NetworkError, FormatError
 from .utils import year_split
-from ..models.schemas import LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, PublicationSchema, IdentifierSchema
-from ..models.enums import IdentifierType, VenueType
+from src.models.schemas import LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, PublicationSchema, IdentifierSchema
+from src.models.enums import IdentifierType, VenueType
 
 logger = logging.getLogger(__name__)
 
@@ -372,13 +372,12 @@ class PubmedSearchAPI(BaseSearchEngine):
             self.logger.error(f"Error in PubMed search: {e}")
             raise NetworkError(f"PubMed search failed: {e}") from e
     
-    def _response_format(self, results: List[Dict], source: str) -> List[Dict]:
+    def _response_format(self, results: List[Dict]) -> List[Dict]:
         """
         Format raw PubMed results into standardized LiteratureSchema format.
         
         Args:
             results: Raw search results from PubMed API
-            source: Data source name (should be 'pubmed')
             
         Returns:
             List[Dict]: Formatted results conforming to LiteratureSchema
@@ -454,7 +453,7 @@ class PubmedSearchAPI(BaseSearchEngine):
                         publication=publication,
                         identifiers=identifiers,
                         source_specific={
-                            'source': 'pubmed',
+                            'source': self.get_source_name(),
                             'raw_data': item
                         }
                     )
@@ -610,28 +609,28 @@ class PubmedSearchAPI(BaseSearchEngine):
 
  
 
-if __name__ == '__main__':
+def main():
+    """Main function for testing PubMed search functionality."""
+    import sys
+    import os
+    
+    # Add the project root to Python path for proper imports
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    
     api = PubmedSearchAPI()
 
-    # 测试查询
-    # params = {'db': 'pubmed', 'retmode': 'xml', 'WebEnv': 'MCID_67a6f465ea2727cf3b058df5', 'query_key': '1', 'retstart': '0', 'retmax': '5'}
-    pmid_list = [
-        "10580082",
-        "10052956",
-        "18411226",
-        "8323535",
-        "20632947",
-        "1798702",
-        "3288990",
-        "16859742",
-    ]
-    # data = api.fetch_info_by_pmid_list(pmid_list=[], webenv=params['WebEnv'], query_key=params['query_key'], retstart=int(params['retstart']), retmax=int(params['retmax']))
-    # data = api.fetch_info_by_pmid_list(pmid_list=pmid_list)
-
-    # print(api.query_for_pmid_list('"synthetic biology"[MeSH Terms] OR Synthetic Biology[Text Word]'))
-    data, metadata = api.search('"Enzymes"[Mesh] AND ncbijournals[filter]', 
-                                # field="Journal Article",
-                                num_results=3)
+    # Test search
+    data, metadata = api.search(
+        '"Enzymes"[Mesh] AND ncbijournals[filter]', 
+        num_results=3
+    )
+    print("Search Results:")
     print(data)
-    print("\n\n")
+    print("\n\nMetadata:")
     print(metadata)
+
+
+if __name__ == '__main__':
+    main()

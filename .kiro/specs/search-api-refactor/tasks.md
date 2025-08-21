@@ -34,11 +34,6 @@
   - _需求: 需求1, 需求3, 需求4_
 
 - [x] 5. 重构Semantic Scholar搜索API
-
-
-
-
-
   - 修改SemanticBulkSearchAPI继承BaseSearchEngine
   - 重构现有的search()方法为_search()方法
   - 实现_response_format()方法将原始数据转换为LiteratureSchema,实现字段映射和数据类型转换逻辑

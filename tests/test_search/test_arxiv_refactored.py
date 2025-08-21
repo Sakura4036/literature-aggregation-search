@@ -7,6 +7,8 @@ and integration with the BaseSearchEngine architecture.
 """
 
 import pytest
+import json
+import os
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, date
 from typing import List, Dict
@@ -24,35 +26,43 @@ class TestArxivSearchAPI:
         """Set up test fixtures."""
         self.api = ArxivSearchAPI()
         
-        # Mock ArXiv result object
-        self.mock_arxiv_result = Mock()
-        self.mock_arxiv_result.title = "Test ArXiv Paper"
-        self.mock_arxiv_result.summary = "This is a test abstract"
-        self.mock_arxiv_result.authors = [Mock(name="John Doe"), Mock(name="Jane Smith")]
-        self.mock_arxiv_result.doi = "10.1234/test.doi"
-        self.mock_arxiv_result.get_short_id.return_value = "2301.12345"
-        self.mock_arxiv_result.published = datetime(2023, 1, 15)
-        self.mock_arxiv_result.updated = datetime(2023, 1, 16)
-        self.mock_arxiv_result.journal_ref = "Test Journal"
-        self.mock_arxiv_result.entry_id = "http://arxiv.org/abs/2301.12345"
-        self.mock_arxiv_result.categories = ["cs.AI", "cs.LG"]
-        self.mock_arxiv_result.pdf_url = "http://arxiv.org/pdf/2301.12345.pdf"
+        # Load real template data
+        template_path = os.path.join(os.path.dirname(__file__), '..', '..', 'templates', 'temp_arxiv.json')
+        with open(template_path, 'r', encoding='utf-8') as f:
+            self.template_data = json.load(f)
         
-        # Expected parsed result
+        # Use first item from template as test data
+        self.sample_result = self.template_data[0]
+        
+        # Mock ArXiv result object based on template data
+        self.mock_arxiv_result = Mock()
+        self.mock_arxiv_result.title = self.sample_result['title']
+        self.mock_arxiv_result.summary = self.sample_result['abstract']
+        self.mock_arxiv_result.authors = [Mock(name=name) for name in self.sample_result['authors']]
+        self.mock_arxiv_result.doi = self.sample_result['doi']
+        self.mock_arxiv_result.get_short_id.return_value = self.sample_result['arxiv_id']
+        self.mock_arxiv_result.published = datetime.strptime(self.sample_result['published_date'], '%Y-%m-%d')
+        self.mock_arxiv_result.updated = datetime.strptime(self.sample_result['updated_date'], '%Y-%m-%d')
+        self.mock_arxiv_result.journal_ref = self.sample_result['journal']
+        self.mock_arxiv_result.entry_id = self.sample_result['url']
+        self.mock_arxiv_result.categories = self.sample_result['categories']
+        self.mock_arxiv_result.pdf_url = self.sample_result['pdf_url']
+        
+        # Expected parsed result based on template data
         self.expected_parsed_result = {
-            'title': 'Test ArXiv Paper',
-            'abstract': 'This is a test abstract',
-            'authors': ['John Doe', 'Jane Smith'],
-            'doi': '10.1234/test.doi',
-            'arxiv_id': '2301.12345',
-            'year': 2023,
-            'published_date': '2023-01-15',
-            'updated_date': '2023-01-16',
-            'journal': 'Test Journal',
-            'url': 'http://arxiv.org/abs/2301.12345',
-            'categories': ['cs.AI', 'cs.LG'],
-            'pdf_url': 'http://arxiv.org/pdf/2301.12345.pdf',
-            'arxiv': {}  # This would contain the full result_to_dict output
+            'title': self.sample_result['title'],
+            'abstract': self.sample_result['abstract'],
+            'authors': self.sample_result['authors'],
+            'doi': self.sample_result['doi'],
+            'arxiv_id': self.sample_result['arxiv_id'],
+            'year': self.sample_result['year'],
+            'published_date': self.sample_result['published_date'],
+            'updated_date': self.sample_result['updated_date'],
+            'journal': self.sample_result['journal'],
+            'url': self.sample_result['url'],
+            'categories': self.sample_result['categories'],
+            'pdf_url': self.sample_result['pdf_url'],
+            'arxiv': self.sample_result['arxiv']
         }
     
     def test_inheritance_from_base_engine(self):
@@ -138,7 +148,7 @@ class TestArxivSearchAPI:
     
     def test_response_format_basic(self):
         """Test basic _response_format functionality."""
-        # Test data
+        # Test data using template
         raw_results = [self.expected_parsed_result]
         
         # Execute formatting
@@ -156,47 +166,54 @@ class TestArxivSearchAPI:
         assert 'categories' in result
         assert 'source_specific' in result
         
-        # Verify article information
+        # Verify article information using template data
         article = result['article']
-        assert article['title'] == 'Test ArXiv Paper'
-        assert article['abstract'] == 'This is a test abstract'
-        assert article['primary_doi'] == '10.1234/test.doi'
-        assert article['publication_year'] == 2023
+        assert article['title'] == self.sample_result['title']
+        assert article['abstract'] == self.sample_result['abstract']
+        assert article['primary_doi'] == self.sample_result['doi']
+        assert article['publication_year'] == self.sample_result['year']
         assert article['is_open_access'] is True
         
-        # Verify authors
+        # Verify authors using template data
         authors = result['authors']
-        assert len(authors) == 2
-        assert authors[0]['full_name'] == 'John Doe'
-        assert authors[0]['author_order'] == 1
-        assert authors[1]['full_name'] == 'Jane Smith'
-        assert authors[1]['author_order'] == 2
+        assert len(authors) == len(self.sample_result['authors'])
+        for i, expected_author in enumerate(self.sample_result['authors']):
+            assert authors[i]['full_name'] == expected_author
+            assert authors[i]['author_order'] == i + 1
         
         # Verify venue
         venue = result['venue']
-        assert venue['venue_name'] == 'Test Journal'
-        assert venue['venue_type'] == VenueType.PREPRINT_SERVER
+        assert venue['venue_name'] == self.sample_result['journal']
+        # Handle enum comparison - asdict() doesn't convert enums to values
+        assert venue['venue_type'] == VenueType.PREPRINT_SERVER or venue['venue_type'] == VenueType.PREPRINT_SERVER.value
         
         # Verify identifiers
         identifiers = result['identifiers']
         assert len(identifiers) >= 2  # DOI and ArXiv ID
         
-        # Find DOI identifier
-        doi_identifier = next((id for id in identifiers if id['identifier_type'] == IdentifierType.DOI), None)
+        # Find DOI identifier - handle enum comparison
+        doi_identifier = next((id for id in identifiers if 
+                              id['identifier_type'] == IdentifierType.DOI or 
+                              id['identifier_type'] == IdentifierType.DOI.value), None)
         assert doi_identifier is not None
-        assert doi_identifier['identifier_value'] == '10.1234/test.doi'
+        assert doi_identifier['identifier_value'] == self.sample_result['doi']
         assert doi_identifier['is_primary'] is True
         
-        # Find ArXiv ID identifier
-        arxiv_identifier = next((id for id in identifiers if id['identifier_type'] == IdentifierType.ARXIV_ID), None)
+        # Find ArXiv ID identifier - handle enum comparison
+        arxiv_identifier = next((id for id in identifiers if 
+                                id['identifier_type'] == IdentifierType.ARXIV_ID or 
+                                id['identifier_type'] == IdentifierType.ARXIV_ID.value), None)
         assert arxiv_identifier is not None
-        assert arxiv_identifier['identifier_value'] == '2301.12345'
+        assert arxiv_identifier['identifier_value'] == self.sample_result['arxiv_id']
         
-        # Verify categories
+        # Verify categories using template data
         categories = result['categories']
-        assert len(categories) == 2
-        assert categories[0]['category_name'] == 'cs.AI'
-        assert categories[0]['category_type'] == CategoryType.ARXIV_CATEGORY
+        assert len(categories) == len(self.sample_result['categories'])
+        for i, expected_category in enumerate(self.sample_result['categories']):
+            assert categories[i]['category_name'] == expected_category
+            # Handle enum comparison
+            assert (categories[i]['category_type'] == CategoryType.ARXIV_CATEGORY or 
+                   categories[i]['category_type'] == CategoryType.ARXIV_CATEGORY.value)
         
         # Verify source specific data
         source_specific = result['source_specific']
@@ -206,16 +223,17 @@ class TestArxivSearchAPI:
     
     def test_response_format_no_doi(self):
         """Test _response_format when DOI is not available."""
-        # Test data without DOI
-        raw_result = self.expected_parsed_result.copy()
-        raw_result['doi'] = None
+        # Use second template item which has no DOI
+        raw_result = self.template_data[1].copy()  # BERT paper has empty DOI
         
         formatted_results = self.api._response_format([raw_result], 'arxiv')
         result = formatted_results[0]
         
         # Verify ArXiv ID becomes primary when no DOI
         identifiers = result['identifiers']
-        arxiv_identifier = next((id for id in identifiers if id['identifier_type'] == IdentifierType.ARXIV_ID), None)
+        arxiv_identifier = next((id for id in identifiers if 
+                                id['identifier_type'] == IdentifierType.ARXIV_ID or 
+                                id['identifier_type'] == IdentifierType.ARXIV_ID.value), None)
         assert arxiv_identifier is not None
         assert arxiv_identifier['is_primary'] is True
     
@@ -242,7 +260,9 @@ class TestArxivSearchAPI:
         # Verify venue defaults
         venue = result['venue']
         assert venue['venue_name'] == 'arXiv'  # Default when no journal
-        assert venue['venue_type'] == VenueType.PREPRINT_SERVER
+        # Handle enum comparison
+        assert (venue['venue_type'] == VenueType.PREPRINT_SERVER or 
+               venue['venue_type'] == VenueType.PREPRINT_SERVER.value)
     
     def test_response_format_error_handling(self):
         """Test _response_format error handling for malformed data."""
@@ -511,7 +531,9 @@ class TestArxivSearchAPIEdgeCases:
         
         # Should not have ArXiv ID identifier
         identifiers = result['identifiers']
-        arxiv_ids = [id for id in identifiers if id['identifier_type'] == IdentifierType.ARXIV_ID]
+        arxiv_ids = [id for id in identifiers if 
+                    id['identifier_type'] == IdentifierType.ARXIV_ID or 
+                    id['identifier_type'] == IdentifierType.ARXIV_ID.value]
         assert len(arxiv_ids) == 0
 
 

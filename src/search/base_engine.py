@@ -104,7 +104,7 @@ class BaseSearchEngine(ABC):
             # 3. Format results
             self.logger.debug(f"Formatting {len(raw_results)} raw results...")
             try:
-                formatted_results = self._response_format(raw_results, self.source_name)
+                formatted_results = self._response_format(raw_results)
             except Exception as e:
                 self.logger.error(f"Error formatting results: {e}")
                 raise FormatError(f"Failed to format search results: {e}")
@@ -165,7 +165,7 @@ class BaseSearchEngine(ABC):
         pass
     
     @abstractmethod
-    def _response_format(self, results: List[Dict], source: str) -> List[Dict]:
+    def _response_format(self, results: List[Dict]) -> List[Dict]:
         """
         Format raw search results into standardized LiteratureSchema format.
         
@@ -174,7 +174,6 @@ class BaseSearchEngine(ABC):
         
         Args:
             results (List[Dict]): Raw search results from the API
-            source (str): Name of the data source
             
         Returns:
             List[Dict]: List of formatted results conforming to LiteratureSchema

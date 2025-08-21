@@ -1,0 +1,90 @@
+[
+  {
+    "title": "Attention Is All You Need",
+    "abstract": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely.",
+    "authors": ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar", "Jakob Uszkoreit", "Llion Jones", "Aidan N. Gomez", "Lukasz Kaiser", "Illia Polosukhin"],
+    "doi": "10.48550/arXiv.1706.03762",
+    "arxiv_id": "1706.03762",
+    "year": 2017,
+    "published_date": "2017-06-12",
+    "updated_date": "2017-08-02",
+    "journal": "Advances in Neural Information Processing Systems",
+    "url": "http://arxiv.org/abs/1706.03762",
+    "categories": ["cs.CL", "cs.AI"],
+    "pdf_url": "http://arxiv.org/pdf/1706.03762.pdf",
+    "arxiv": {
+      "entry_id": "http://arxiv.org/abs/1706.03762v5",
+      "updated": "2017-08-02T17:51:55Z",
+      "published": "2017-06-12T17:51:55Z",
+      "title": "Attention Is All You Need",
+      "abstract": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely.",
+      "comment": "15 pages, 5 figures",
+      "authors": ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar", "Jakob Uszkoreit", "Llion Jones", "Aidan N. Gomez", "Lukasz Kaiser", "Illia Polosukhin"],
+      "doi": "10.48550/arXiv.1706.03762",
+      "year": 2017,
+      "url": "http://arxiv.org/abs/1706.03762v5",
+      "arxiv_id": "1706.03762",
+      "journal": "Advances in Neural Information Processing Systems",
+      "links": [
+        {
+          "href": "http://arxiv.org/abs/1706.03762v5",
+          "type": "text/html",
+          "title": null,
+          "rel": "alternate"
+        },
+        {
+          "href": "http://arxiv.org/pdf/1706.03762v5.pdf",
+          "type": "application/pdf",
+          "title": "pdf",
+          "rel": "related"
+        }
+      ],
+      "categories": ["cs.CL", "cs.AI"],
+      "pdf_url": "http://arxiv.org/pdf/1706.03762v5.pdf"
+    }
+  },
+  {
+    "title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+    "abstract": "We introduce a new language representation model called BERT, which stands for Bidirectional Encoder Representations from Transformers. Unlike recent language representation models, BERT is designed to pre-train deep bidirectional representations from unlabeled text by jointly conditioning on both left and right context in all layers.",
+    "authors": ["Jacob Devlin", "Ming-Wei Chang", "Kenton Lee", "Kristina Toutanova"],
+    "doi": "",
+    "arxiv_id": "1810.04805",
+    "year": 2018,
+    "published_date": "2018-10-11",
+    "updated_date": "2019-05-24",
+    "journal": null,
+    "url": "http://arxiv.org/abs/1810.04805",
+    "categories": ["cs.CL"],
+    "pdf_url": "http://arxiv.org/pdf/1810.04805.pdf",
+    "arxiv": {
+      "entry_id": "http://arxiv.org/abs/1810.04805v2",
+      "updated": "2019-05-24T17:51:55Z",
+      "published": "2018-10-11T17:51:55Z",
+      "title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+      "abstract": "We introduce a new language representation model called BERT, which stands for Bidirectional Encoder Representations from Transformers. Unlike recent language representation models, BERT is designed to pre-train deep bidirectional representations from unlabeled text by jointly conditioning on both left and right context in all layers.",
+      "comment": null,
+      "authors": ["Jacob Devlin", "Ming-Wei Chang", "Kenton Lee", "Kristina Toutanova"],
+      "doi": "",
+      "year": 2018,
+      "url": "http://arxiv.org/abs/1810.04805v2",
+      "arxiv_id": "1810.04805",
+      "journal": null,
+      "links": [
+        {
+          "href": "http://arxiv.org/abs/1810.04805v2",
+          "type": "text/html",
+          "title": null,
+          "rel": "alternate"
+        },
+        {
+          "href": "http://arxiv.org/pdf/1810.04805v2.pdf",
+          "type": "application/pdf",
+          "title": "pdf",
+          "rel": "related"
+        }
+      ],
+      "categories": ["cs.CL"],
+      "pdf_url": "http://arxiv.org/pdf/1810.04805v2.pdf"
+    }
+  }
+]

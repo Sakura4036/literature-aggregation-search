@@ -5,13 +5,16 @@ import arxiv
 from urllib.parse import urlencode
 from .utils import year_split
 from .base_engine import BaseSearchEngine, NetworkError, FormatError
-from ..models.schemas import LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, IdentifierSchema, CategorySchema
-from ..models.enums import IdentifierType, VenueType, CategoryType
+from src.models.schemas import LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, IdentifierSchema, CategorySchema
+from src.models.enums import IdentifierType, VenueType, CategoryType
 
 logger = logging.getLogger(__name__)
 
 
 def result_to_dict(result: arxiv.Result):
+    """
+    arxiv Result object to dict 
+    """
     return {
         'entry_id': result.entry_id,
         'updated': result.updated.isoformat(),
@@ -257,8 +260,11 @@ class ArxivSearchAPI(BaseSearchEngine):
             results = self._query(search_query, id_list, max_results=num_results, 
                                 sort_by=sort_by, sort_order=sort_order)
             
+            # Convert iterator to list for parsing
+            results_list = list(results)
+            
             # Parse results
-            parsed_results = self._parse(results)
+            parsed_results = self._parse(results_list)
 
             metadata = {
                 'query': search_query,
@@ -275,13 +281,12 @@ class ArxivSearchAPI(BaseSearchEngine):
             self.logger.error(f"Error during ArXiv search: {e}")
             raise NetworkError(f"ArXiv search failed: {e}") from e
     
-    def _response_format(self, results: List[Dict], source: str) -> List[Dict]:
+    def _response_format(self, results: List[Dict]) -> List[Dict]:
         """
         Format raw ArXiv results into standardized LiteratureSchema format.
         
         Args:
             results: Raw search results from ArXiv API
-            source: Data source name ('arxiv')
             
         Returns:
             List[Dict]: Formatted results conforming to LiteratureSchema
@@ -355,7 +360,7 @@ class ArxivSearchAPI(BaseSearchEngine):
                     identifiers=identifiers,
                     categories=categories,
                     source_specific={
-                        'source': source,
+                        'source': self.get_source_name(),
                         'raw_data': item,
                         'arxiv_url': item.get('url'),
                         'pdf_url': item.get('pdf_url'),
@@ -448,3 +453,8 @@ class ArxivSearchAPI(BaseSearchEngine):
             legacy_results.append(result['source_specific']['raw_data'])
         
         return legacy_results, metadata
+
+
+if __name__ == "__main__":
+    api = ArxivSearchAPI()
+    res = api.search(query="Agent", num_results=1)

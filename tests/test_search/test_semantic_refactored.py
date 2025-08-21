@@ -6,6 +6,8 @@ inherits from BaseSearchEngine and implements the required methods.
 """
 
 import pytest
+import json
+import os
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
 
@@ -22,42 +24,13 @@ class TestSemanticBulkSearchAPI:
         """Set up test fixtures."""
         self.api = SemanticBulkSearchAPI()
         
-        # Sample raw Semantic Scholar response
-        self.sample_raw_result = {
-            "paperId": "649def34f8be52c8b66281af98ae884c09aef38b",
-            "corpusId": 215416146,
-            "externalIds": {
-                "DOI": "10.1145/3292500.3330665",
-                "ArXiv": "1905.12616",
-                "PubMed": "31199361",
-            },
-            "title": "Construction of the Literature Graph in Semantic Scholar",
-            "abstract": "We describe a deployed scalable system for organizing published scientific literature.",
-            "venue": "Annual Meeting of the Association for Computational Linguistics",
-            "year": 2020,
-            "referenceCount": 59,
-            "citationCount": 453,
-            "influentialCitationCount": 90,
-            "isOpenAccess": True,
-            "openAccessPdf": {
-                "url": "https://www.aclweb.org/anthology/2020.acl-main.447.pdf"
-            },
-            "fieldsOfStudy": ["Computer Science"],
-            "publicationTypes": ["JournalArticle", "Conference"],
-            "publicationDate": "2020-04-29",
-            "journal": {
-                "name": "IETE Technical Review",
-                "volume": "40",
-                "pages": "116-135"
-            },
-            "authors": [
-                {
-                    "authorId": "1741101",
-                    "name": "Oren Etzioni",
-                    "affiliations": ["Allen Institute for AI"]
-                }
-            ]
-        }
+        # Load real template data
+        template_path = os.path.join(os.path.dirname(__file__), '..', '..', 'templates', 'temp_semantic_scholar.json')
+        with open(template_path, 'r', encoding='utf-8') as f:
+            template_data = json.load(f)
+        
+        # Use first item from template data
+        self.sample_raw_result = template_data['data'][0]
     
     def test_inheritance(self):
         """Test that SemanticBulkSearchAPI properly inherits from BaseSearchEngine."""
@@ -129,26 +102,29 @@ class TestSemanticBulkSearchAPI:
         # Verify the result is a dictionary (from LiteratureSchema.to_dict())
         assert isinstance(result, dict)
         
-        # Check article information
-        assert result['article']['title'] == "Construction of the Literature Graph in Semantic Scholar"
-        assert result['article']['primary_doi'] == "10.1145/3292500.3330665"
-        assert result['article']['publication_year'] == 2020
-        assert result['article']['citation_count'] == 453
-        assert result['article']['is_open_access'] == True
+        # Check article information using template data
+        assert result['article']['title'] == self.sample_raw_result['title']
+        assert result['article']['primary_doi'] == self.sample_raw_result['externalIds']['DOI']
+        assert result['article']['publication_year'] == self.sample_raw_result['year']
+        assert result['article']['citation_count'] == self.sample_raw_result['citationCount']
+        assert result['article']['is_open_access'] == self.sample_raw_result['isOpenAccess']
         
-        # Check authors
-        assert len(result['authors']) == 1
-        assert result['authors'][0]['full_name'] == "Oren Etzioni"
-        assert result['authors'][0]['author_order'] == 1
+        # Check authors using template data
+        expected_authors = self.sample_raw_result['authors']
+        assert len(result['authors']) == len(expected_authors)
+        for i, expected_author in enumerate(expected_authors):
+            assert result['authors'][i]['full_name'] == expected_author['name']
+            assert result['authors'][i]['author_order'] == i + 1
         
-        # Check venue
-        assert result['venue']['venue_name'] == "Annual Meeting of the Association for Computational Linguistics"
+        # Check venue using template data
+        assert result['venue']['venue_name'] == self.sample_raw_result['venue']
         
         # Check identifiers
         identifiers = result['identifiers']
-        # The identifier_type should be serialized as the enum value
+        # Handle enum comparison - asdict() doesn't convert enums to values
         from src.models.enums import IdentifierType
-        doi_found = any(id['identifier_type'] == IdentifierType.DOI and id['identifier_value'] == "10.1145/3292500.3330665" 
+        doi_found = any((id['identifier_type'] == IdentifierType.DOI or id['identifier_type'] == IdentifierType.DOI.value) and 
+                       id['identifier_value'] == self.sample_raw_result['externalIds']['DOI'] 
                        for id in identifiers)
         assert doi_found, f"DOI not found in identifiers: {identifiers}"
         
@@ -175,22 +151,32 @@ class TestSemanticBulkSearchAPI:
         literature = self.api._format_single_result(self.sample_raw_result, "semantic_scholar")
         
         assert isinstance(literature, LiteratureSchema)
-        assert literature.article.title == "Construction of the Literature Graph in Semantic Scholar"
-        assert literature.article.primary_doi == "10.1145/3292500.3330665"
-        assert literature.article.citation_count == 453
-        assert literature.article.is_open_access == True
+        assert literature.article.title == self.sample_raw_result['title']
+        assert literature.article.primary_doi == self.sample_raw_result['externalIds']['DOI']
+        assert literature.article.citation_count == self.sample_raw_result['citationCount']
+        assert literature.article.is_open_access == self.sample_raw_result['isOpenAccess']
         
-        # Check identifiers
+        # Check identifiers using template data
         doi = literature.get_identifier(IdentifierType.DOI)
-        assert doi == "10.1145/3292500.3330665"
+        assert doi == self.sample_raw_result['externalIds']['DOI']
         
         semantic_id = literature.get_identifier(IdentifierType.SEMANTIC_SCHOLAR_ID)
-        assert semantic_id == "649def34f8be52c8b66281af98ae884c09aef38b"
+        assert semantic_id == self.sample_raw_result['paperId']
         
-        # Check categories
-        assert len(literature.categories) == 1
-        assert literature.categories[0].category_name == "Computer Science"
-        assert literature.categories[0].category_type == CategoryType.FIELD_OF_STUDY
+        # Check categories using template data
+        # Note: The template data includes both fieldsOfStudy and s2FieldsOfStudy, so we may have more categories
+        expected_fields = self.sample_raw_result['fieldsOfStudy']
+        # Just check that we have at least the expected fields
+        assert len(literature.categories) >= len(expected_fields)
+        
+        # Check that all expected fields are present
+        category_names = [cat.category_name for cat in literature.categories]
+        for expected_field in expected_fields:
+            assert expected_field in category_names
+        
+        # Check that all categories have the correct type
+        for category in literature.categories:
+            assert category.category_type == CategoryType.FIELD_OF_STUDY
     
     def test_extract_open_access_url(self):
         """Test _extract_open_access_url method."""
