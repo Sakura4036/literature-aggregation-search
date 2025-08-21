@@ -6,7 +6,11 @@ import time
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
-from .response_formatter import ResponseFormatter
+from typing import Dict, List, Tuple, Any, Optional
+
+from .base_engine import BaseSearchEngine, NetworkError, FormatError
+from ..models.schemas import LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, PublicationSchema, IdentifierSchema, CategorySchema, PublicationTypeSchema
+from ..models.enums import IdentifierType, VenueType, CategoryType, PublicationTypeSource
 
 
 logger = logging.getLogger(__name__)
@@ -104,9 +108,10 @@ def document_type_to_normal(document_type: str):
         return document_type
 
 
-class SemanticBulkSearchAPI:
+class SemanticBulkSearchAPI(BaseSearchEngine):
     """
     A tool for searching literatures on Semantic Scholar.
+    Inherits from BaseSearchEngine to provide unified interface.
     """
     base_url: str = "https://api.semanticscholar.org/graph/v1/paper/search/bulk?"
     switch_grammar = {
@@ -114,7 +119,50 @@ class SemanticBulkSearchAPI:
         "OR": '|',
         "NOT": '-',
     }
+    
+    def get_source_name(self) -> str:
+        """Get the name of the data source."""
+        return "semantic_scholar"
 
+    def validate_params(self, query: str, **kwargs) -> bool:
+        """
+        Validate search parameters for Semantic Scholar.
+        
+        Extends base validation with Semantic Scholar specific checks.
+        """
+        # Call base validation first
+        if not super().validate_params(query, **kwargs):
+            return False
+        
+        # Validate document_type
+        document_type = kwargs.get('document_type', '')
+        if document_type:
+            try:
+                document_type_to_semantic(document_type)
+            except ValueError as e:
+                self.logger.error(f"Invalid document type: {e}")
+                return False
+        
+        # Validate fields_of_study
+        fields_of_study = kwargs.get('fields_of_study')
+        if fields_of_study is not None and not isinstance(fields_of_study, str):
+            self.logger.error(f"fields_of_study must be a string, got: {type(fields_of_study)}")
+            return False
+        
+        # Validate fields parameter
+        fields = kwargs.get('fields')
+        if fields is not None and not isinstance(fields, str):
+            self.logger.error(f"fields must be a string, got: {type(fields)}")
+            return False
+        
+        # Validate filtered parameter
+        filtered = kwargs.get('filtered')
+        if filtered is not None and not isinstance(filtered, bool):
+            self.logger.error(f"filtered must be a boolean, got: {type(filtered)}")
+            return False
+        
+        return True
+    
     def check_query(self, query: str):
         for key, value in self.switch_grammar.items():
             query = query.replace(key, value)
@@ -239,32 +287,258 @@ class SemanticBulkSearchAPI:
         logger.debug(f"Final results: {len(result)}")
         return result, metadata
 
-    def search(self, query: str, year: str = '', document_type: str = '',
-               fields_of_study: str = '', fields: str = '', num_results: int = 50,
-               filtered: bool = False) -> tuple[list[dict], dict]:
+    def _search(self, query: str, **kwargs) -> Tuple[List[Dict], Dict]:
         """
-        Paper relevance search on Semantic Scholar. API documentation: https://api.semanticscholar.org/api-docs#tag/Paper-Data/operation/get_graph_paper_relevance_search
-
-        return example:
-        [
-            {
-                "paperId": "649def34f8be52c8b66281af98ae884c09aef38b",
-                "externalIds": {
-                "DOI": "10.1145/3292500.3330665",
-                "ArXiv": "1905.12616",
-                "PubMed": "31199361",
-                },
-                "title": "Construction of the Literature Graph in Semantic Scholar",
-                "abstract": "We describe a deployed scalable system ...",
-            }
-        ]
+        Execute raw search against Semantic Scholar API.
+        
+        Args:
+            query: Search query string
+            **kwargs: Additional search parameters including:
+                - year: Year range filter
+                - document_type: Document type filter
+                - fields_of_study: Fields of study filter
+                - fields: Fields to return
+                - num_results: Number of results to return
+                - filtered: Whether to filter results
+                
+        Returns:
+            Tuple[List[Dict], Dict]: Raw results and metadata
         """
+        # Extract parameters with defaults
+        year = kwargs.get('year', '')
+        document_type = kwargs.get('document_type', '')
+        fields_of_study = kwargs.get('fields_of_study', '')
+        fields = kwargs.get('fields', '')
+        num_results = kwargs.get('num_results', 50)
+        filtered = kwargs.get('filtered', False)
+        
         if not num_results:
             return [], {}
-        result, metadata = self.query(query, year, document_type, fields_of_study, fields, num_results, filtered)
-        logger.debug(f"semantic_bulk_search result num: {len(result)}")
-        result = process_papers(result)
-        return result, metadata
+            
+        try:
+            result, metadata = self.query(query, year, document_type, fields_of_study, fields, num_results, filtered)
+            self.logger.debug(f"semantic_bulk_search result num: {len(result)}")
+            return result, metadata
+        except Exception as e:
+            self.logger.error(f"Error in Semantic Scholar search: {e}")
+            raise NetworkError(f"Semantic Scholar search failed: {e}")
+    
+    def _response_format(self, results: List[Dict], source: str) -> List[Dict]:
+        """
+        Format raw Semantic Scholar results into LiteratureSchema format.
+        
+        Args:
+            results: Raw search results from Semantic Scholar API
+            source: Data source name
+            
+        Returns:
+            List[Dict]: Formatted results conforming to LiteratureSchema
+        """
+        formatted_results = []
+        
+        for item in results:
+            try:
+                # Create LiteratureSchema instance
+                literature = self._format_single_result(item, source)
+                formatted_results.append(literature.to_dict())
+            except Exception as e:
+                self.logger.warning(f"Error formatting result: {e}, skipping item")
+                continue
+        
+        return formatted_results
+    
+    def _format_single_result(self, item: Dict, source: str) -> LiteratureSchema:
+        """
+        Format a single Semantic Scholar result into LiteratureSchema.
+        
+        Args:
+            item: Single raw result from Semantic Scholar
+            source: Data source name
+            
+        Returns:
+            LiteratureSchema: Formatted literature record
+        """
+        # Extract DOI from externalIds or direct field
+        doi = item.get('doi') or item.get('externalIds', {}).get('DOI')
+        
+        # Create article information
+        article = ArticleSchema(
+            primary_doi=doi,
+            title=item.get('title', ''),
+            abstract=item.get('abstract'),
+            publication_year=item.get('year'),
+            publication_date=item.get('published_date'),
+            citation_count=item.get('citation_count', item.get('citationCount', 0)),
+            reference_count=item.get('references_count', item.get('referenceCount', 0)),
+            influential_citation_count=item.get('influentialCitationCount', 0),
+            is_open_access=item.get('isOpenAccess', False),
+            open_access_url=self._extract_open_access_url(item)
+        )
+        
+        # Create authors
+        authors = []
+        for i, author_name in enumerate(item.get('authors', [])):
+            if isinstance(author_name, str):
+                authors.append(AuthorSchema(
+                    full_name=author_name,
+                    author_order=i + 1
+                ))
+            elif isinstance(author_name, dict):
+                # Handle detailed author information from raw Semantic Scholar data
+                authors.append(AuthorSchema(
+                    full_name=author_name.get('name', ''),
+                    semantic_scholar_id=author_name.get('authorId'),
+                    affiliation=', '.join(author_name.get('affiliations', [])) if author_name.get('affiliations') else None,
+                    author_order=i + 1
+                ))
+        
+        # Create venue information
+        venue_name = item.get('venue', '')
+        if not venue_name and item.get('journal'):
+            if isinstance(item['journal'], dict):
+                venue_name = item['journal'].get('name', '')
+            else:
+                venue_name = str(item['journal'])
+        
+        venue_type = self._determine_venue_type(item)
+        
+        venue = VenueSchema(
+            venue_name=venue_name,
+            venue_type=venue_type
+        )
+        
+        # Create publication information
+        volume = item.get('volume')
+        issue = item.get('issue')
+        
+        # Extract from journal object if available
+        if item.get('journal') and isinstance(item['journal'], dict):
+            volume = volume or item['journal'].get('volume')
+            issue = issue or item['journal'].get('pages')  # Semantic Scholar uses 'pages' for issue info
+        
+        publication = PublicationSchema(
+            volume=volume,
+            issue=issue
+        )
+        
+        # Create identifiers
+        identifiers = []
+        # Add DOI from externalIds or direct field
+        if doi:
+            identifiers.append(IdentifierSchema(
+                identifier_type=IdentifierType.DOI,
+                identifier_value=doi,
+                is_primary=True
+            ))
+        
+        # Add other identifiers from externalIds
+        external_ids = item.get('externalIds', {})
+        if external_ids.get('PubMed'):
+            identifiers.append(IdentifierSchema(
+                identifier_type=IdentifierType.PMID,
+                identifier_value=external_ids['PubMed'],
+                is_primary=False
+            ))
+        
+        if external_ids.get('ArXiv'):
+            identifiers.append(IdentifierSchema(
+                identifier_type=IdentifierType.ARXIV_ID,
+                identifier_value=external_ids['ArXiv'],
+                is_primary=False
+            ))
+        
+        # Also check for direct fields (for backward compatibility)
+        self._add_identifier_if_exists(identifiers, item, 'pmid', IdentifierType.PMID)
+        self._add_identifier_if_exists(identifiers, item, 'arxiv_id', IdentifierType.ARXIV_ID)
+        
+        # Add Semantic Scholar specific identifiers
+        if item.get('paperId'):
+            identifiers.append(IdentifierSchema(
+                identifier_type=IdentifierType.SEMANTIC_SCHOLAR_ID,
+                identifier_value=item['paperId'],
+                is_primary=False
+            ))
+        
+        if item.get('corpusId'):
+            identifiers.append(IdentifierSchema(
+                identifier_type=IdentifierType.CORPUS_ID,
+                identifier_value=str(item['corpusId']),
+                is_primary=False
+            ))
+        
+        # Create categories from fields of study
+        categories = []
+        for field in item.get('fieldsOfStudy', []):
+            if isinstance(field, str):
+                categories.append(CategorySchema(
+                    category_name=field,
+                    category_type=CategoryType.FIELD_OF_STUDY
+                ))
+        
+        # Handle s2FieldsOfStudy if available
+        for field in item.get('s2FieldsOfStudy', []):
+            if isinstance(field, dict) and field.get('category'):
+                categories.append(CategorySchema(
+                    category_name=field['category'],
+                    category_type=CategoryType.FIELD_OF_STUDY,
+                    confidence_score=field.get('score')
+                ))
+        
+        # Create publication types
+        publication_types = []
+        for pub_type in item.get('types', []):
+            publication_types.append(PublicationTypeSchema(
+                type_name=pub_type,
+                source_type=PublicationTypeSource.SEMANTIC_SCHOLAR
+            ))
+        
+        # Create complete literature schema
+        literature = LiteratureSchema(
+            article=article,
+            authors=authors,
+            venue=venue,
+            publication=publication,
+            identifiers=identifiers,
+            categories=categories,
+            publication_types=publication_types,
+            source_specific={
+                'source': source,
+                'raw_data': item.get('semantic_scholar', item)
+            }
+        )
+        
+        return literature
+    
+    def _extract_open_access_url(self, item: Dict) -> Optional[str]:
+        """Extract open access URL from Semantic Scholar data."""
+        # Check for openAccessPdf URL
+        if item.get('openAccessPdf'):
+            if isinstance(item['openAccessPdf'], dict):
+                return item['openAccessPdf'].get('url')
+            elif isinstance(item['openAccessPdf'], str):
+                return item['openAccessPdf']
+        return None
+    
+    def _determine_venue_type(self, item: Dict) -> VenueType:
+        """Determine venue type from Semantic Scholar data."""
+        # Check publicationVenue type if available
+        if item.get('publicationVenue', {}).get('type') == 'conference':
+            return VenueType.CONFERENCE
+        elif item.get('journal'):
+            return VenueType.JOURNAL
+        else:
+            return VenueType.OTHER
+    
+    def _add_identifier_if_exists(self, identifiers: List[IdentifierSchema], item: Dict, 
+                                 key: str, identifier_type: IdentifierType, is_primary: bool = False):
+        """Add identifier if it exists in the item."""
+        value = item.get(key)
+        if value and str(value).strip():
+            identifiers.append(IdentifierSchema(
+                identifier_type=identifier_type,
+                identifier_value=str(value).strip(),
+                is_primary=is_primary
+            ))
 
 
 class SemanticCitationAPI:
@@ -382,44 +656,88 @@ class SemanticReferenceAPI:
 def process_papers(paper_list: list[dict]) -> list[dict]:
     """
     Process the result from Semantic Scholar search.
+    
+    This function maintains backward compatibility by processing raw Semantic Scholar
+    results into the intermediate format expected by legacy code.
     """
     format_papers = []
 
     for paper in paper_list:
         format_paper = copy.deepcopy(paper)
+        
+        # Ensure externalIds exists
         if not paper.get('externalIds'):
             paper['externalIds'] = {}
+        
+        # Process open access PDF
         if 'openAccessPdf' in paper and paper['openAccessPdf']:
-            format_paper['openAccessPdf'] = paper['openAccessPdf'].get('url', '')
+            if isinstance(paper['openAccessPdf'], dict):
+                format_paper['openAccessPdf'] = paper['openAccessPdf'].get('url', '')
+            else:
+                format_paper['openAccessPdf'] = paper['openAccessPdf']
+        else:
+            format_paper['openAccessPdf'] = ''
+        
+        # Basic fields
         format_paper['title'] = paper.get('title', '')
         format_paper['abstract'] = paper.get('abstract', '')
-        format_paper['doi'] = paper.get('externalIds', {}).get('DOI', '')
-        format_paper['pmid'] = paper.get('externalIds', {}).get('PubMed', '')
-        format_paper['arxiv_id'] = paper.get('externalIds', {}).get('ArXiv', '')
-        # get paper types
+        
+        # Extract identifiers from externalIds
+        external_ids = paper.get('externalIds', {})
+        format_paper['doi'] = external_ids.get('DOI', '')
+        format_paper['pmid'] = external_ids.get('PubMed', '')
+        format_paper['arxiv_id'] = external_ids.get('ArXiv', '')
+        
+        # Process publication types
         format_paper['types'] = []
         for document_type in paper.get('publicationTypes') or []:
-            format_paper['types'].append(document_type_to_normal(document_type))
+            try:
+                format_paper['types'].append(document_type_to_normal(document_type))
+            except:
+                format_paper['types'].append(document_type)
 
+        # Publication year and date
         format_paper['year'] = paper.get('year', '')
-        publicationDate = paper.get('publicationDate', '')
-        if publicationDate:
-            format_paper['published_date'] = datetime.strptime(publicationDate, '%Y-%m-%d').date().isoformat()
+        publication_date = paper.get('publicationDate', '')
+        if publication_date:
+            try:
+                format_paper['published_date'] = datetime.strptime(publication_date, '%Y-%m-%d').date().isoformat()
+            except ValueError:
+                format_paper['published_date'] = publication_date
         else:
             format_paper['published_date'] = None
+        
+        # Journal information
         if paper.get('journal'):
             format_paper['journal'] = paper['journal'].get('name', '')
             format_paper['volume'] = paper['journal'].get('volume', '')
             format_paper['issue'] = paper['journal'].get('pages', '')
         else:
-            format_paper['journal'] = ''
+            format_paper['journal'] = paper.get('venue', '')
             format_paper['volume'] = ''
-            format_paper['issue'] = ''  
-        format_paper['citation_count'] = paper.get("citationCount", None)
-        format_paper['references_count'] = paper.get("referencesCount", None)
-        format_paper['authors'] = [author.get("name") for author in paper.get("authors") or []]
+            format_paper['issue'] = ''
+        
+        # Citation and reference counts
+        format_paper['citation_count'] = paper.get("citationCount", 0)
+        format_paper['references_count'] = paper.get("referenceCount", 0)
+        format_paper['influentialCitationCount'] = paper.get("influentialCitationCount", 0)
+        
+        # Open access information
+        format_paper['isOpenAccess'] = paper.get("isOpenAccess", False)
+        
+        # Process authors
+        authors = []
+        for author in paper.get("authors") or []:
+            if isinstance(author, dict):
+                authors.append(author.get("name", ""))
+            elif isinstance(author, str):
+                authors.append(author)
+        format_paper['authors'] = authors
+        
+        # Store original data
         format_paper['semantic_scholar'] = paper
         format_papers.append(format_paper)
+    
     return format_papers
 
 
@@ -431,31 +749,38 @@ def semantic_bulk_search(query: str,
                          num_results: int = 50,
                          filtered: bool = False) -> tuple[list[dict], dict]:
     """
-    Paper relevance search on Semantic Scholar. API documentation: https://api.semanticscholar.org/api-docs#tag/Paper-Data/operation/get_graph_paper_relevance_search
-
-    return example:
-    [
-        {
-            "paperId": "649def34f8be52c8b66281af98ae884c09aef38b",
-            "externalIds": {
-            "DOI": "10.1145/3292500.3330665",
-            "ArXiv": "1905.12616",
-            "PubMed": "31199361",
-            },
-            "title": "Construction of the Literature Graph in Semantic Scholar",
-            "abstract": "We describe a deployed scalable system ...",
-        }
-    ]
+    Paper relevance search on Semantic Scholar using the new unified interface.
+    
+    This function provides backward compatibility while using the new BaseSearchEngine architecture.
+    
+    Args:
+        query: Search query string
+        year: Year range filter
+        document_type: Document type filter
+        fields_of_study: Fields of study filter
+        fields: Fields to return
+        num_results: Number of results to return
+        filtered: Whether to filter results
+        
+    Returns:
+        Tuple[List[Dict], Dict]: Formatted results and metadata
     """
     if not num_results:
         return [], {}
-    result, metadata = SemanticBulkSearchAPI().query(query, year, document_type, fields_of_study, fields, num_results, filtered)
-    logger.debug(f"semantic_bulk_search result num: {len(result)}")
-    result = process_papers(result)
-
-    # Format the results
-    formatted_results = [ResponseFormatter.format(r, 'semantic_scholar') for r in result]
-
+    
+    # Use the new unified search interface
+    api = SemanticBulkSearchAPI()
+    formatted_results, metadata = api.search(
+        query=query,
+        year=year,
+        document_type=document_type,
+        fields_of_study=fields_of_study,
+        fields=fields,
+        num_results=num_results,
+        filtered=filtered
+    )
+    
+    logger.debug(f"semantic_bulk_search result num: {len(formatted_results)}")
     return formatted_results, metadata
 
 
