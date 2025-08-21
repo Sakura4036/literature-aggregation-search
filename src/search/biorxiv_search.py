@@ -1,23 +1,37 @@
 import logging
 import requests
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict
 
 from .utils import year_split
+from .base_engine import BaseSearchEngine, NetworkError, FormatError
+from src.models.schemas import (
+    LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, 
+    IdentifierSchema, CategorySchema, PublicationTypeSchema
+)
+from src.models.enums import IdentifierType, VenueType, CategoryType, PublicationTypeSource
 
 logger = logging.getLogger(__name__)
 
 
-class BioRxivSearchAPI:
+class BioRxivSearchAPI(BaseSearchEngine):
     """
-    bioRxiv Search API工具
+    bioRxiv Search API implementation inheriting from BaseSearchEngine.
+    
+    Provides search functionality for bioRxiv preprint server with unified interface.
     API文档: https://api.biorxiv.org/
     """
     base_url: str = "https://api.biorxiv.org"
 
     def __init__(self):
-        """初始化bioRxiv搜索API"""
+        """Initialize bioRxiv search API"""
+        super().__init__()
         self.limit = 100  # bioRxiv API每页最大返回100条结果
+        self.max_results_limit = 10000  # Set reasonable limit for bioRxiv
+
+    def get_source_name(self) -> str:
+        """Get the name of the data source."""
+        return 'biorxiv'
 
     def _process_response(self, response: dict) -> list[dict]:
         """
@@ -168,10 +182,156 @@ class BioRxivSearchAPI:
 
         return results, metadata
 
-    def search(self, query: str = '', year: str = '', num_results: int = 50,
-               server: str = 'biorxiv') -> Tuple[list[dict], dict]:
+    def _search(self, query: str, **kwargs) -> Tuple[List[Dict], Dict]:
         """
-        bioRxiv论文搜索的主要接口
+        Execute raw search against bioRxiv API.
+        
+        Args:
+            query: Search query string (DOI or empty for date range search)
+            **kwargs: Additional search parameters including:
+                - num_results: Number of results to return
+                - year: Year range filter
+                - server: Server type ('biorxiv' or 'medrxiv')
+                
+        Returns:
+            Tuple[List[Dict], Dict]: Raw results and metadata
+        """
+        try:
+            # Extract parameters
+            num_results = kwargs.get('num_results', self.default_results)
+            year = kwargs.get('year', '')
+            server = kwargs.get('server', 'biorxiv')
+            
+            # Use the existing query method
+            results, metadata = self.query(
+                query=query,
+                year=year,
+                num_results=num_results,
+                server=server
+            )
+            
+            self.logger.debug(f"bioRxiv search returned {len(results)} results")
+            return results, metadata
+            
+        except Exception as e:
+            self.logger.error(f"Error during bioRxiv search: {e}")
+            raise NetworkError(f"bioRxiv search failed: {e}") from e
+
+    def _response_format(self, results: List[Dict]) -> List[Dict]:
+        """
+        Format raw bioRxiv results into standardized LiteratureSchema format.
+        
+        Args:
+            results: Raw search results from bioRxiv API
+            
+        Returns:
+            List[Dict]: Formatted results conforming to LiteratureSchema
+        """
+        formatted_results = []
+        
+        for item in results:
+            try:
+                # Create article schema
+                article = ArticleSchema(
+                    primary_doi=item.get('doi'),
+                    title=item.get('title', ''),
+                    abstract=item.get('abstract'),
+                    publication_year=item.get('year'),
+                    publication_date=item.get('published_date'),
+                    is_open_access=True,  # bioRxiv is open access
+                    language="eng"  # bioRxiv is primarily English
+                )
+                
+                # Create authors
+                authors = []
+                for i, author_name in enumerate(item.get('authors', [])):
+                    if author_name and author_name.strip():
+                        authors.append(AuthorSchema(
+                            full_name=author_name.strip(),
+                            author_order=i + 1
+                        ))
+                
+                # Create venue schema - bioRxiv is a preprint server
+                venue = VenueSchema(
+                    venue_name=item.get('journal', 'bioRxiv'),
+                    venue_type=VenueType.PREPRINT_SERVER
+                )
+                
+                # Create identifiers
+                identifiers = []
+                
+                # Add DOI if available
+                doi = item.get('doi')
+                if doi and str(doi).strip():
+                    identifiers.append(IdentifierSchema(
+                        identifier_type=IdentifierType.DOI,
+                        identifier_value=str(doi).strip(),
+                        is_primary=True
+                    ))
+                
+                # Create categories from bioRxiv category
+                categories = []
+                # bioRxiv has category information in the raw data
+                raw_data = item.get('biorxiv', {})
+                category = raw_data.get('category')
+                if category and category.strip():
+                    categories.append(CategorySchema(
+                        category_name=category.strip(),
+                        category_type=CategoryType.OTHER  # bioRxiv uses its own categorization
+                    ))
+                
+                # Create publication types
+                publication_types = []
+                for pub_type in item.get('types', []):
+                    if pub_type and pub_type.strip():
+                        publication_types.append(PublicationTypeSchema(
+                            type_name=pub_type.strip(),
+                            source_type=PublicationTypeSource.GENERAL
+                        ))
+                
+                # Create literature schema
+                literature = LiteratureSchema(
+                    article=article,
+                    authors=authors,
+                    venue=venue,
+                    identifiers=identifiers,
+                    categories=categories,
+                    publication_types=publication_types,
+                    source_specific={
+                        'source': self.get_source_name(),
+                        'raw_data': item,
+                        'server': raw_data.get('server', 'bioRxiv'),
+                        'version': raw_data.get('version'),
+                        'license': raw_data.get('license'),
+                        'jatsxml': raw_data.get('jatsxml'),
+                        'author_corresponding': raw_data.get('author_corresponding'),
+                        'author_corresponding_institution': raw_data.get('author_corresponding_institution')
+                    }
+                )
+                
+                # Validate the schema
+                is_valid, errors = literature.validate()
+                if not is_valid:
+                    self.logger.warning(f"Schema validation failed for bioRxiv item: {errors}")
+                    # Skip invalid items if they have critical errors (like missing title)
+                    if any("title is required" in error for error in errors):
+                        continue
+                
+                formatted_results.append(literature.to_dict())
+                
+            except Exception as e:
+                self.logger.error(f"Error formatting bioRxiv result: {e}")
+                # Skip malformed results and continue processing other results
+                continue
+        
+        return formatted_results
+
+    def search_legacy(self, query: str = '', year: str = '', num_results: int = 50,
+                     server: str = 'biorxiv') -> Tuple[List[Dict], Dict]:
+        """
+        Legacy search method for backward compatibility.
+        
+        This method maintains the original interface while using the new base class architecture.
         
         Args:
             query: 查询DOI
@@ -180,16 +340,27 @@ class BioRxivSearchAPI:
             server: 服务器类型(biorxiv或medrxiv)
             
         Returns:
-            Tuple[list[dict], dict]: (论文列表, 元数据)
+            Tuple[List[Dict], Dict]: (论文列表, 元数据)
         """
-        results, metadata = self.query(
-            query=query,
-            year=year,
-            num_results=num_results,
-            server=server
-        )
-        logger.debug(f"biorxiv_search result num: {len(results)}")
-        return results, metadata
+        # Convert parameters to new format, filtering out empty values
+        kwargs = {
+            'num_results': num_results,
+            'server': server
+        }
+        
+        # Only add year if it's not empty
+        if year and year.strip():
+            kwargs['year'] = year
+        
+        # Use the new search method
+        formatted_results, metadata = self.search(query, **kwargs)
+        
+        # Convert back to legacy format if needed
+        legacy_results = []
+        for result in formatted_results:
+            legacy_results.append(result['source_specific']['raw_data'])
+        
+        return legacy_results, metadata
 
 
 if __name__ == "__main__":

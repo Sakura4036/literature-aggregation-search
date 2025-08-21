@@ -30,7 +30,7 @@
   - 重构现有的search()方法为_search()方法
   - 实现_response_format()方法将原始数据转换为LiteratureSchema,实现字段映射和数据类型转换逻辑
   - 处理ArXiv特有的字段映射
-  - 编写重构后的API测试
+  - 编写重构后的API测试，使用templates文件夹中的temp_arxiv.json数据作为测试mock数据
   - _需求: 需求1, 需求3, 需求4_
 
 - [x] 5. 重构Semantic Scholar搜索API
@@ -38,22 +38,27 @@
   - 重构现有的search()方法为_search()方法
   - 实现_response_format()方法将原始数据转换为LiteratureSchema,实现字段映射和数据类型转换逻辑
   - 处理Semantic Scholar特有的字段映射
-  - 编写重构后的API测试
+  - 编写重构后的API测试，使用templates文件夹中的temp_semantic_scholar.json数据作为测试mock数据
   - _需求: 需求1, 需求3, 需求4_
 
-- [ ]6. 重构bioRxiv搜索API
+- [x] 6. 重构bioRxiv搜索API
+
+
+
+
+
   - 修改BioRxivSearchAPI继承BaseSearchEngine
   - 重构现有的search()方法为_search()方法
   - 实现_response_format()方法将原始数据转换为LiteratureSchema,实现字段映射和数据类型转换逻辑
   - 处理bioRxiv特有的字段映射
-  - 编写重构后的API测试
+  - 编写重构后的API测试，使用templates文件夹中的temp_biorxiv.json数据作为测试mock数据
   - _需求: 需求1, 需求3, 需求4_
 
 - [ ] 7. 重构Web of Science搜索API
   - 修改WosSearchAPI继承BaseSearchEngine
   - 重构现有的search()方法为_search()方法
   - 实现_response_format()方法将原始数据转换为LiteratureSchema,实现字段映射和数据类型转换逻辑
-  - 处理WoS特有的字段映射
+  - 处理WoS特有的字段映射，使用templates文件夹中的temp_wos.json数据作为测试mock数据
   - 编写重构后的API测试
   - _需求: 需求1, 需求3, 需求4_
 
