@@ -1,13 +1,21 @@
 import time
 import traceback
 from enum import Enum
+from typing import Dict, List, Tuple, Any, Optional
 
 import requests
 import logging
 from datetime import datetime, timedelta
 import threading
+
+from .base_engine import BaseSearchEngine, NetworkError, FormatError
 from .utils import year_split
 from .response_formatter import ResponseFormatter
+from src.models.schemas import (
+    LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, 
+    PublicationSchema, IdentifierSchema, CategorySchema, PublicationTypeSchema
+)
+from src.models.enums import IdentifierType, VenueType, CategoryType, PublicationTypeSource
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +142,7 @@ class WosApiKeyManager:
             }
 
 
-class WosSearchAPI:
+class WosSearchAPI(BaseSearchEngine):
     """
     Web of Science Search API tool provider.
     API documentation: https://api.clarivate.com/swagger-ui/?apikey=none&url=https%3A%2F%2Fdeveloper.clarivate.com%2Fapis%2Fwos-starter%2Fswagger
@@ -148,6 +156,7 @@ class WosSearchAPI:
 
     def __init__(self, api_keys: list[str] = None) -> None:
         """Initialize Web of Science Search API tool provider."""
+        super().__init__()
         self.api_keys = api_keys or []
         self.api_keys = list(set(self.api_keys))
         if not self.api_keys:
@@ -156,6 +165,10 @@ class WosSearchAPI:
             pass
         self.key_manager = WosApiKeyManager(self.api_keys)
         self.limit = 50
+
+    def get_source_name(self) -> str:
+        """Get the name of the data source."""
+        return "wos"
 
     def check_query(self, query: str):
         for key, value in self.switch_grammar.items():
@@ -354,6 +367,193 @@ class WosSearchAPI:
 
         return result, metadata
 
+    def _search(self, query: str, **kwargs) -> Tuple[List[Dict], Dict]:
+        """
+        Execute raw search against Web of Science API.
+        
+        Args:
+            query: Search query string
+            **kwargs: Additional search parameters including:
+                - query_type: Query type (default: 'TS')
+                - year: Publication year filter
+                - document_type: Document type filter
+                - num_results: Number of results to return (default: 50)
+                - sort_field: Sort field (default: 'RS+D')
+                - db: Database name (default: 'WOK')
+                
+        Returns:
+            Tuple[List[Dict], Dict]: Raw results and metadata
+        """
+        # Extract parameters with defaults
+        query_type = kwargs.get('query_type', 'TS')
+        year = kwargs.get('year', '')
+        document_type = kwargs.get('document_type', '')
+        num_results = kwargs.get('num_results', 50)
+        sort_field = kwargs.get('sort_field', 'RS+D')
+        db = kwargs.get('db', 'WOK')
+        
+        if not num_results:
+            return [], {}
+            
+        try:
+            result, metadata = self.query(query, query_type, year, document_type, num_results, sort_field, db)
+            logger.debug(f"wos_search result num: {len(result)}")
+            return result, metadata
+        except Exception as e:
+            logger.error(f"WoS search failed: {e}")
+            raise NetworkError(f"WoS API request failed: {e}")
+
+    def _response_format(self, results: List[Dict]) -> List[Dict]:
+        """
+        Format raw WoS search results into standardized LiteratureSchema format.
+        
+        Args:
+            results: Raw search results from WoS API
+            
+        Returns:
+            List[Dict]: List of formatted results conforming to LiteratureSchema
+        """
+        formatted_results = []
+        
+        for item in results:
+            try:
+                # Extract WoS-specific data
+                wos_data = item.get('wos', {})
+                
+                # Create article schema
+                article = ArticleSchema(
+                    primary_doi=item.get('doi', '').strip() or None,
+                    title=item.get('title', '').strip(),
+                    abstract=item.get('abstract', '').strip() or None,
+                    publication_year=item.get('year'),
+                    publication_date=item.get('published_date'),
+                    citation_count=self._extract_citation_count(wos_data),
+                    is_open_access=False  # WoS doesn't provide this info directly
+                )
+                
+                # Create authors
+                authors = []
+                raw_authors = item.get('authors', [])
+                for i, author_name in enumerate(raw_authors):
+                    if author_name and author_name.strip():
+                        authors.append(AuthorSchema(
+                            full_name=author_name.strip(),
+                            author_order=i + 1
+                        ))
+                
+                # Create venue schema
+                venue = VenueSchema(
+                    venue_name=item.get('journal', '').strip(),
+                    venue_type=VenueType.JOURNAL,  # WoS primarily contains journal articles
+                    issn_print=item.get('issn', '').strip() or None,
+                    issn_electronic=item.get('eissn', '').strip() or None
+                )
+                
+                # Create publication schema
+                publication = PublicationSchema(
+                    volume=item.get('volume', '').strip() or None,
+                    issue=item.get('issue', '').strip() or None,
+                    page_range=self._extract_page_range(wos_data)
+                )
+                
+                # Create identifiers
+                identifiers = []
+                if item.get('doi'):
+                    identifiers.append(IdentifierSchema(
+                        identifier_type=IdentifierType.DOI,
+                        identifier_value=item['doi'].strip(),
+                        is_primary=True
+                    ))
+                
+                if item.get('pmid'):
+                    identifiers.append(IdentifierSchema(
+                        identifier_type=IdentifierType.PMID,
+                        identifier_value=str(item['pmid']).strip()
+                    ))
+                
+                if wos_data.get('uid'):
+                    identifiers.append(IdentifierSchema(
+                        identifier_type=IdentifierType.WOS_UID,
+                        identifier_value=wos_data['uid'].strip()
+                    ))
+                
+                # Create categories from WoS types
+                categories = []
+                wos_types = item.get('types', [])
+                if wos_types:
+                    for wos_type in wos_types:
+                        if wos_type and wos_type.strip():
+                            categories.append(CategorySchema(
+                                category_name=wos_type.strip(),
+                                category_type=CategoryType.WOS_CATEGORY
+                            ))
+                
+                # Create publication types
+                publication_types = []
+                if wos_types:
+                    for wos_type in wos_types:
+                        if wos_type and wos_type.strip():
+                            publication_types.append(PublicationTypeSchema(
+                                type_name=wos_type.strip(),
+                                source_type=PublicationTypeSource.WOS
+                            ))
+                
+                # Create the complete literature schema
+                literature = LiteratureSchema(
+                    article=article,
+                    authors=authors,
+                    venue=venue,
+                    publication=publication,
+                    identifiers=identifiers,
+                    categories=categories,
+                    publication_types=publication_types,
+                    source_specific={
+                        'source': 'wos',
+                        'raw_data': item,
+                        'wos_uid': wos_data.get('uid'),
+                        'source_types': wos_data.get('sourceTypes', []),
+                        'links': wos_data.get('links', {}),
+                        'keywords': wos_data.get('keywords', {})
+                    }
+                )
+                
+                # Validate and add to results
+                is_valid, errors = literature.validate()
+                if not is_valid:
+                    logger.warning(f"WoS result validation failed: {errors}")
+                
+                formatted_results.append(literature.to_dict())
+                
+            except Exception as e:
+                logger.error(f"Error formatting WoS result: {e}")
+                # Continue processing other results
+                continue
+        
+        return formatted_results
+
+    def _extract_citation_count(self, wos_data: Dict) -> int:
+        """Extract citation count from WoS data."""
+        try:
+            citations = wos_data.get('citations', [])
+            if citations and isinstance(citations, list):
+                for citation in citations:
+                    if citation.get('db') == 'WOS':
+                        return citation.get('count', 0)
+            return 0
+        except Exception:
+            return 0
+
+    def _extract_page_range(self, wos_data: Dict) -> Optional[str]:
+        """Extract page range from WoS data."""
+        try:
+            source = wos_data.get('source', {})
+            pages = source.get('pages', {})
+            if isinstance(pages, dict):
+                return pages.get('range')
+            return None
+        except Exception:
+            return None
+
     def search(self, query: str,
                query_type: str = 'TS',
                year: str = "",
@@ -363,6 +563,9 @@ class WosSearchAPI:
                db: str = 'WOK') -> tuple[list[dict], dict]:
         """
         Search Web of Science Core Collection.
+        
+        This method maintains backward compatibility while using the new base engine architecture.
+        
         :param query: query string
         :param query_type: query type, default is 'TS'(Topic, Title, Abstract, Author Keywords, Keywords Plus)
         :param year: publication year, format: 'YYYY' or 'YYYY-YYYY'
@@ -372,12 +575,14 @@ class WosSearchAPI:
         :param db: database name, default is 'WOK'(all databases), 'WOS' for Web of Science Core Collection,
         :return: list of papers, metadata
         """
-        if not limit:
-            return [], {}
-        result, metadata = self.query(query, query_type, year, document_type, limit, sort_field, db)
-        logger.debug(f"wos_search result num: {len(result)}", )
-
-        # Format the results
-        formatted_results = [ResponseFormatter.format(r, 'wos') for r in result]
-
-        return formatted_results, metadata
+        # Use the new base engine search method
+        kwargs = {
+            'query_type': query_type,
+            'year': year,
+            'document_type': document_type,
+            'num_results': limit,
+            'sort_field': sort_field,
+            'db': db
+        }
+        
+        return super().search(query, **kwargs)

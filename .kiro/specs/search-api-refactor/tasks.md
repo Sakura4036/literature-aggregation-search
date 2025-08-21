@@ -42,11 +42,6 @@
   - _需求: 需求1, 需求3, 需求4_
 
 - [x] 6. 重构bioRxiv搜索API
-
-
-
-
-
   - 修改BioRxivSearchAPI继承BaseSearchEngine
   - 重构现有的search()方法为_search()方法
   - 实现_response_format()方法将原始数据转换为LiteratureSchema,实现字段映射和数据类型转换逻辑
@@ -54,7 +49,12 @@
   - 编写重构后的API测试，使用templates文件夹中的temp_biorxiv.json数据作为测试mock数据
   - _需求: 需求1, 需求3, 需求4_
 
-- [ ] 7. 重构Web of Science搜索API
+- [x] 7. 重构Web of Science搜索API
+
+
+
+
+
   - 修改WosSearchAPI继承BaseSearchEngine
   - 重构现有的search()方法为_search()方法
   - 实现_response_format()方法将原始数据转换为LiteratureSchema,实现字段映射和数据类型转换逻辑
