@@ -42,7 +42,7 @@ class ConcreteSearchEngine(BaseSearchEngine):
         }
         return raw_results, metadata
     
-    def _response_format(self, results: List[Dict], source: str) -> List[Dict]:
+    def _response_format(self, results: List[Dict]) -> List[Dict]:
         """Mock implementation that formats results."""
         formatted_results = []
         for result in results:
@@ -52,7 +52,7 @@ class ConcreteSearchEngine(BaseSearchEngine):
                     "primary_doi": None
                 },
                 "source_specific": {
-                    "source": source,
+                    "source": self.get_source_name(),
                     "raw_data": result
                 }
             })
@@ -68,7 +68,7 @@ class FailingSearchEngine(BaseSearchEngine):
     def _search(self, query: str, **kwargs) -> Tuple[List[Dict], Dict]:
         raise NetworkError("Simulated network failure")
     
-    def _response_format(self, results: List[Dict], source: str) -> List[Dict]:
+    def _response_format(self, results: List[Dict]) -> List[Dict]:
         raise FormatError("Simulated formatting failure")
 
 
@@ -202,7 +202,7 @@ class TestBaseSearchEngine:
         """Test that format errors are properly handled."""
         # Create an engine that fails during formatting
         class FormatFailingEngine(ConcreteSearchEngine):
-            def _response_format(self, results: List[Dict], source: str) -> List[Dict]:
+            def _response_format(self, results: List[Dict]) -> List[Dict]:
                 raise Exception("Formatting failed")
         
         engine = FormatFailingEngine()

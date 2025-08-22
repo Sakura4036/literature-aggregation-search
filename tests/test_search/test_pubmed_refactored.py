@@ -140,7 +140,7 @@ class TestPubmedSearchAPI:
         raw_results = [self.expected_parsed_result]
         
         # Execute formatting
-        formatted_results = self.api._response_format(raw_results, 'pubmed')
+        formatted_results = self.api._response_format(raw_results)
         
         # Verify results structure
         assert len(formatted_results) == 1
@@ -217,7 +217,7 @@ class TestPubmedSearchAPI:
         raw_result = self.expected_parsed_result.copy()
         raw_result['doi'] = ""
         
-        formatted_results = self.api._response_format([raw_result], 'pubmed')
+        formatted_results = self.api._response_format([raw_result])
         result = formatted_results[0]
         
         # Verify PMID becomes primary when no DOI
@@ -239,7 +239,7 @@ class TestPubmedSearchAPI:
             'year': 2023
         }
         
-        formatted_results = self.api._response_format([minimal_result], 'pubmed')
+        formatted_results = self.api._response_format([minimal_result])
         result = formatted_results[0]
         
         # Verify it still creates a valid structure
@@ -255,7 +255,7 @@ class TestPubmedSearchAPI:
         
         # Should not raise exception, but log warning and continue
         with patch.object(self.api.logger, 'warning') as mock_warning:
-            formatted_results = self.api._response_format([malformed_result], 'pubmed')
+            formatted_results = self.api._response_format([malformed_result])
             
             # Should create result but with validation warnings
             assert len(formatted_results) == 1
@@ -357,7 +357,7 @@ class TestPubmedSearchAPI:
         result_with_warnings['year'] = 3000  # Invalid year should trigger validation warning
         
         with patch.object(self.api.logger, 'warning') as mock_warning:
-            formatted_results = self.api._response_format([result_with_warnings], 'pubmed')
+            formatted_results = self.api._response_format([result_with_warnings])
             
             # Should still return result but log warning
             assert len(formatted_results) == 1
@@ -377,7 +377,7 @@ class TestPubmedSearchAPIEdgeCases:
     
     def test_empty_results_handling(self):
         """Test handling of empty search results."""
-        formatted_results = self.api._response_format([], 'pubmed')
+        formatted_results = self.api._response_format([])
         assert formatted_results == []
     
     def test_malformed_author_data(self):
@@ -390,7 +390,7 @@ class TestPubmedSearchAPIEdgeCases:
             'year': 2023
         }
         
-        formatted_results = self.api._response_format([result_with_bad_authors], 'pubmed')
+        formatted_results = self.api._response_format([result_with_bad_authors])
         result = formatted_results[0]
         
         # Should only include valid author
@@ -407,7 +407,7 @@ class TestPubmedSearchAPIEdgeCases:
             'year': 2023
         }
         
-        formatted_results = self.api._response_format([result_without_pmid], 'pubmed')
+        formatted_results = self.api._response_format([result_without_pmid])
         result = formatted_results[0]
         
         # Should still create valid result

@@ -152,7 +152,7 @@ class TestArxivSearchAPI:
         raw_results = [self.expected_parsed_result]
         
         # Execute formatting
-        formatted_results = self.api._response_format(raw_results, 'arxiv')
+        formatted_results = self.api._response_format(raw_results)
         
         # Verify results structure
         assert len(formatted_results) == 1
@@ -226,7 +226,7 @@ class TestArxivSearchAPI:
         # Use second template item which has no DOI
         raw_result = self.template_data[1].copy()  # BERT paper has empty DOI
         
-        formatted_results = self.api._response_format([raw_result], 'arxiv')
+        formatted_results = self.api._response_format([raw_result])
         result = formatted_results[0]
         
         # Verify ArXiv ID becomes primary when no DOI
@@ -248,7 +248,7 @@ class TestArxivSearchAPI:
             'categories': []
         }
         
-        formatted_results = self.api._response_format([minimal_result], 'arxiv')
+        formatted_results = self.api._response_format([minimal_result])
         result = formatted_results[0]
         
         # Verify it still creates a valid structure
@@ -270,7 +270,7 @@ class TestArxivSearchAPI:
         malformed_result = {'invalid': 'data'}
         
         # Should not raise exception, but log warning and continue
-        formatted_results = self.api._response_format([malformed_result], 'arxiv')
+        formatted_results = self.api._response_format([malformed_result])
         
         # Should skip malformed data and return empty list
         assert len(formatted_results) == 0
@@ -436,7 +436,7 @@ class TestArxivSearchAPI:
         }
         
         with patch.object(self.api.logger, 'warning') as mock_warning:
-            formatted_results = self.api._response_format([invalid_result], 'arxiv')
+            formatted_results = self.api._response_format([invalid_result])
             
             # Should still return result but log warning
             assert len(formatted_results) == 1
@@ -457,7 +457,7 @@ class TestArxivSearchAPI:
         }
         
         with patch.object(self.api.logger, 'warning') as mock_warning:
-            formatted_results = self.api._response_format([invalid_result], 'arxiv')
+            formatted_results = self.api._response_format([invalid_result])
             
             # Should skip the result due to empty title
             assert len(formatted_results) == 0
@@ -477,7 +477,7 @@ class TestArxivSearchAPIEdgeCases:
     
     def test_empty_results_handling(self):
         """Test handling of empty search results."""
-        formatted_results = self.api._response_format([], 'arxiv')
+        formatted_results = self.api._response_format([])
         assert formatted_results == []
     
     def test_malformed_author_data(self):
@@ -489,7 +489,7 @@ class TestArxivSearchAPIEdgeCases:
             'year': 2023
         }
         
-        formatted_results = self.api._response_format([result_with_bad_authors], 'arxiv')
+        formatted_results = self.api._response_format([result_with_bad_authors])
         result = formatted_results[0]
         
         # Should only include valid author
@@ -507,7 +507,7 @@ class TestArxivSearchAPIEdgeCases:
             'categories': [None, '', '   ', 'cs.AI']  # Mix of invalid and valid
         }
         
-        formatted_results = self.api._response_format([result_with_bad_categories], 'arxiv')
+        formatted_results = self.api._response_format([result_with_bad_categories])
         result = formatted_results[0]
         
         # Should only include valid category
@@ -523,7 +523,7 @@ class TestArxivSearchAPIEdgeCases:
             'year': 2023
         }
         
-        formatted_results = self.api._response_format([result_without_arxiv_id], 'arxiv')
+        formatted_results = self.api._response_format([result_without_arxiv_id])
         result = formatted_results[0]
         
         # Should still create valid result

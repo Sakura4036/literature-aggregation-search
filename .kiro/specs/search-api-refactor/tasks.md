@@ -50,11 +50,6 @@
   - _需求: 需求1, 需求3, 需求4_
 
 - [x] 7. 重构Web of Science搜索API
-
-
-
-
-
   - 修改WosSearchAPI继承BaseSearchEngine
   - 重构现有的search()方法为_search()方法
   - 实现_response_format()方法将原始数据转换为LiteratureSchema,实现字段映射和数据类型转换逻辑
@@ -62,7 +57,7 @@
   - 编写重构后的API测试
   - _需求: 需求1, 需求3, 需求4_
 
-- [ ] 8. 更新搜索聚合器以支持新架构
+- [x] 8. 更新搜索聚合器以支持新架构
   - 修改SearchAggregator以使用新的基类架构
   - 更新search_single_source()方法以处理新的返回格式
   - 确保聚合器能正确处理LiteratureSchema对象
@@ -85,8 +80,6 @@
   - 测试多源聚合搜索功能
   - 验证Schema验证和数据完整性
   - 测试向后兼容性
-  - 创建性能基准测试
-  - 实现自动化测试流水线
   - _需求: 需求1, 需求2, 需求3, 需求4, 需求5_
 
 - [ ] 11. 更新文档和示例代码

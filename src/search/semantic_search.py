@@ -332,7 +332,6 @@ class SemanticBulkSearchAPI(BaseSearchEngine):
         
         Args:
             results: Raw search results from Semantic Scholar API
-            source: Data source name
             
         Returns:
             List[Dict]: Formatted results conforming to LiteratureSchema
@@ -342,7 +341,7 @@ class SemanticBulkSearchAPI(BaseSearchEngine):
         for item in results:
             try:
                 # Create LiteratureSchema instance
-                literature = self._format_single_result(item, source)
+                literature = self._format_single_result(item)
                 formatted_results.append(literature.to_dict())
             except Exception as e:
                 self.logger.warning(f"Error formatting result: {e}, skipping item")
@@ -350,13 +349,12 @@ class SemanticBulkSearchAPI(BaseSearchEngine):
         
         return formatted_results
     
-    def _format_single_result(self, item: Dict, source: str) -> LiteratureSchema:
+    def _format_single_result(self, item: Dict) -> LiteratureSchema:
         """
         Format a single Semantic Scholar result into LiteratureSchema.
         
         Args:
             item: Single raw result from Semantic Scholar
-            source: Data source name
             
         Returns:
             LiteratureSchema: Formatted literature record
@@ -505,7 +503,7 @@ class SemanticBulkSearchAPI(BaseSearchEngine):
             categories=categories,
             publication_types=publication_types,
             source_specific={
-                'source': source,
+                'source': self.get_source_name(),
                 'raw_data': item.get('semantic_scholar', item)
             }
         )

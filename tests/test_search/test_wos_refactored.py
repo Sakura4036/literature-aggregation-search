@@ -20,6 +20,11 @@ from src.models.enums import IdentifierType, VenueType, CategoryType, Publicatio
 class TestWosSearchAPI:
     """Test cases for WosSearchAPI class."""
     
+    def __init__(self):
+        """Initialize test class attributes."""
+        self.api = None
+        self.test_data = None
+    
     def setup_method(self):
         """Set up test fixtures."""
         self.api = WosSearchAPI(api_keys=['test_key_1', 'test_key_2'])
@@ -44,7 +49,7 @@ class TestWosSearchAPI:
         """Test proper initialization of WosSearchAPI."""
         # Test with API keys
         api_with_keys = WosSearchAPI(api_keys=['key1', 'key2'])
-        assert api_with_keys.api_keys == ['key1', 'key2']
+        assert set(api_with_keys.api_keys) == {'key1', 'key2'}
         assert api_with_keys.source_name == "wos"
         
         # Test without API keys

@@ -94,7 +94,7 @@ class TestSemanticBulkSearchAPI:
     
     def test_response_format_single_result(self):
         """Test _response_format method with a single result."""
-        results = self.api._response_format([self.sample_raw_result], "semantic_scholar")
+        results = self.api._response_format([self.sample_raw_result])
         
         assert len(results) == 1
         result = results[0]
@@ -133,13 +133,13 @@ class TestSemanticBulkSearchAPI:
     
     def test_response_format_empty_results(self):
         """Test _response_format method with empty results."""
-        results = self.api._response_format([], "semantic_scholar")
+        results = self.api._response_format([])
         assert results == []
     
     def test_response_format_malformed_result(self):
         """Test _response_format method with malformed result."""
         malformed_result = {"invalid": "data"}
-        results = self.api._response_format([malformed_result], "semantic_scholar")
+        results = self.api._response_format([malformed_result])
         
         # Should handle malformed data gracefully
         assert len(results) == 1
@@ -148,7 +148,7 @@ class TestSemanticBulkSearchAPI:
     
     def test_format_single_result_detailed(self):
         """Test _format_single_result method with detailed data."""
-        literature = self.api._format_single_result(self.sample_raw_result, "semantic_scholar")
+        literature = self.api._format_single_result(self.sample_raw_result)
         
         assert isinstance(literature, LiteratureSchema)
         assert literature.article.title == self.sample_raw_result['title']

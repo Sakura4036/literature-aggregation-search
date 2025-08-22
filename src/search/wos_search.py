@@ -10,7 +10,6 @@ import threading
 
 from .base_engine import BaseSearchEngine, NetworkError, FormatError
 from .utils import year_split
-from .response_formatter import ResponseFormatter
 from src.models.schemas import (
     LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, 
     PublicationSchema, IdentifierSchema, CategorySchema, PublicationTypeSchema
@@ -508,7 +507,7 @@ class WosSearchAPI(BaseSearchEngine):
                     categories=categories,
                     publication_types=publication_types,
                     source_specific={
-                        'source': 'wos',
+                        'source': self.get_source_name(),
                         'raw_data': item,
                         'wos_uid': wos_data.get('uid'),
                         'source_types': wos_data.get('sourceTypes', []),

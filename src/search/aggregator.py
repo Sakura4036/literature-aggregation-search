@@ -2,6 +2,7 @@
 搜索聚合器 - 统一管理多数据源搜索
 
 实现并行搜索、结果聚合、去重合并等核心功能
+支持新的BaseSearchEngine架构和LiteratureSchema格式
 """
 
 import asyncio
@@ -14,7 +15,10 @@ from .pubmed_search import PubmedSearchAPI
 from .arxiv_search import ArxivSearchAPI
 from .biorxiv_search import BioRxivSearchAPI
 from .semantic_search import SemanticBulkSearchAPI
-from .response_formatter import ResponseFormatter
+from .wos_search import WosSearchAPI
+from .base_engine import BaseSearchEngine
+from ..models.schemas import LiteratureSchema
+from ..models.enums import IdentifierType
 
 logger = logging.getLogger(__name__)
 
@@ -69,10 +73,16 @@ class SearchAggregator:
             'arxiv': ArxivSearchAPI(),
             'biorxiv': BioRxivSearchAPI(),
             'semantic_scholar': SemanticBulkSearchAPI(),
-            # 'wos': WosSearchAPI(),  # 待实现
+            'wos': WosSearchAPI(),
         }
-        self.formatter = ResponseFormatter()
         self.max_workers = 4  # 并发搜索的最大线程数
+        
+        # 验证所有API都继承自BaseSearchEngine
+        for source, api in self.search_apis.items():
+            if not isinstance(api, BaseSearchEngine):
+                logger.warning(f"API {source} does not inherit from BaseSearchEngine")
+        
+        logger.info(f"SearchAggregator initialized with {len(self.search_apis)} search engines")
     
     def search_single_source(self, source: str, query: str, **kwargs) -> Tuple[str, List[Dict], Dict, Optional[str]]:
         """搜索单个数据源
@@ -91,18 +101,28 @@ class SearchAggregator:
             
             api = self.search_apis[source]
             
-            # 根据不同API调用相应的搜索方法
+            # 调用统一的search方法（所有API都应该继承BaseSearchEngine）
             if hasattr(api, 'search'):
                 results, metadata = api.search(query, **kwargs)
+                
+                # 验证结果格式 - 应该是LiteratureSchema格式的字典列表
+                if results and isinstance(results, list):
+                    # 验证第一个结果是否符合预期格式
+                    first_result = results[0]
+                    if isinstance(first_result, dict):
+                        # 检查是否包含LiteratureSchema的关键字段
+                        expected_fields = ['article', 'authors', 'venue', 'identifiers']
+                        if not all(field in first_result for field in expected_fields):
+                            logger.warning(f"Results from {source} may not be in LiteratureSchema format")
+                    
+                logger.info(f"Successfully searched {source}: {len(results)} results")
+                return source, results, metadata, None
             else:
                 return source, [], {}, f"Search method not found for {source}"
             
-            logger.info(f"Successfully searched {source}: {len(results)} results")
-            return source, results, metadata, None
-            
         except Exception as e:
             error_msg = f"Error searching {source}: {str(e)}"
-            logger.error(error_msg)
+            logger.error(error_msg, exc_info=True)
             return source, [], {}, error_msg
     
     def search_all_sources(self, query: str, sources: Optional[List[str]] = None, 
@@ -219,14 +239,10 @@ class SearchAggregator:
         if not deduplicate or not search_result['results']:
             return search_result
         
-        # 导入去重模块（避免循环导入）
+        # 使用新的标识符系统进行去重
         try:
-            from ..processing.deduplicator import Deduplicator
-            deduplicator = Deduplicator()
-            
-            # 执行去重
             original_count = len(search_result['results'])
-            deduplicated_results = deduplicator.deduplicate(search_result['results'])
+            deduplicated_results = self._deduplicate_literature_schema(search_result['results'])
             duplicates_removed = original_count - len(deduplicated_results)
             
             # 更新结果
@@ -237,12 +253,235 @@ class SearchAggregator:
             
             logger.info(f"Deduplication completed: removed {duplicates_removed} duplicates")
             
-        except ImportError:
-            logger.warning("Deduplicator not available, skipping deduplication")
+        except Exception as e:
+            logger.error(f"Deduplication failed: {e}")
             search_result['metadata']['deduplication_enabled'] = False
+            search_result['metadata']['deduplication_error'] = str(e)
         
         return search_result
     
+    def _deduplicate_literature_schema(self, results: List[Dict]) -> List[Dict]:
+        """使用新的标识符系统对LiteratureSchema格式的结果进行去重
+        
+        Args:
+            results: LiteratureSchema格式的结果列表
+            
+        Returns:
+            去重后的结果列表
+        """
+        if not results:
+            return []
+        
+        # 标识符优先级（从高到低）
+        identifier_priority = [
+            IdentifierType.DOI,
+            IdentifierType.PMID,
+            IdentifierType.ARXIV_ID,
+            IdentifierType.SEMANTIC_SCHOLAR_ID,
+            IdentifierType.WOS_UID
+        ]
+        
+        unique_results = []
+        seen_identifiers = {}  # identifier_key -> result_index
+        
+        for result in results:
+            is_duplicate = False
+            duplicate_of_index = None
+            
+            # 检查标识符是否已存在
+            if 'identifiers' in result and isinstance(result['identifiers'], list):
+                for identifier in result['identifiers']:
+                    if isinstance(identifier, dict):
+                        id_type_str = identifier.get('identifier_type')
+                        id_value = identifier.get('identifier_value')
+                        
+                        if id_type_str and id_value:
+                            # 转换字符串为枚举类型
+                            try:
+                                if isinstance(id_type_str, str):
+                                    id_type = IdentifierType(id_type_str)
+                                else:
+                                    id_type = id_type_str
+                                
+                                if id_type in identifier_priority:
+                                    normalized_value = self._normalize_identifier_value(id_type, id_value)
+                                    identifier_key = f"{id_type.value}:{normalized_value}"
+                                    
+                                    if identifier_key in seen_identifiers:
+                                        is_duplicate = True
+                                        duplicate_of_index = seen_identifiers[identifier_key]
+                                        break
+                            except ValueError:
+                                # 未知的标识符类型，跳过
+                                continue
+            
+            if is_duplicate and duplicate_of_index is not None:
+                # 合并重复结果
+                unique_results[duplicate_of_index] = self._merge_literature_results(
+                    unique_results[duplicate_of_index], result
+                )
+            else:
+                # 记录所有标识符
+                if 'identifiers' in result and isinstance(result['identifiers'], list):
+                    for identifier in result['identifiers']:
+                        if isinstance(identifier, dict):
+                            id_type_str = identifier.get('identifier_type')
+                            id_value = identifier.get('identifier_value')
+                            
+                            if id_type_str and id_value:
+                                try:
+                                    if isinstance(id_type_str, str):
+                                        id_type = IdentifierType(id_type_str)
+                                    else:
+                                        id_type = id_type_str
+                                    
+                                    if id_type in identifier_priority:
+                                        normalized_value = self._normalize_identifier_value(id_type, id_value)
+                                        identifier_key = f"{id_type.value}:{normalized_value}"
+                                        seen_identifiers[identifier_key] = len(unique_results)
+                                except ValueError:
+                                    continue
+                
+                unique_results.append(result)
+        
+        return unique_results
+    
+    def _normalize_identifier_value(self, identifier_type: IdentifierType, value: str) -> str:
+        """标准化标识符值
+        
+        Args:
+            identifier_type: 标识符类型
+            value: 标识符值
+            
+        Returns:
+            标准化后的值
+        """
+        if not value:
+            return ""
+        
+        normalized = str(value).strip().lower()
+        
+        if identifier_type == IdentifierType.DOI:
+            # 移除DOI前缀
+            import re
+            normalized = re.sub(r'^(doi:|https?://doi\.org/|https?://dx\.doi\.org/)', '', normalized)
+            normalized = normalized.strip('/')
+        elif identifier_type == IdentifierType.PMID:
+            # 确保是纯数字
+            import re
+            normalized = re.sub(r'[^\d]', '', normalized)
+        elif identifier_type == IdentifierType.ARXIV_ID:
+            # 标准化ArXiv ID格式
+            import re
+            normalized = re.sub(r'^arxiv:', '', normalized)
+            normalized = re.sub(r'v\d+$', '', normalized)  # 移除版本号
+        
+        return normalized
+    
+    def _merge_literature_results(self, result1: Dict, result2: Dict) -> Dict:
+        """合并两个LiteratureSchema格式的结果
+        
+        Args:
+            result1: 第一个结果
+            result2: 第二个结果
+            
+        Returns:
+            合并后的结果
+        """
+        # 选择更完整的结果作为基础
+        base_result = self._select_more_complete_result(result1, result2)
+        merged_result = base_result.copy()
+        
+        # 合并标识符
+        all_identifiers = []
+        for result in [result1, result2]:
+            if 'identifiers' in result and isinstance(result['identifiers'], list):
+                all_identifiers.extend(result['identifiers'])
+        
+        # 去重标识符
+        unique_identifiers = []
+        seen_identifier_keys = set()
+        for identifier in all_identifiers:
+            if isinstance(identifier, dict):
+                id_type = identifier.get('identifier_type')
+                id_value = identifier.get('identifier_value')
+                if id_type and id_value:
+                    key = f"{id_type}:{id_value}"
+                    if key not in seen_identifier_keys:
+                        unique_identifiers.append(identifier)
+                        seen_identifier_keys.add(key)
+        
+        merged_result['identifiers'] = unique_identifiers
+        
+        # 合并数据源信息
+        sources = []
+        for result in [result1, result2]:
+            if 'source_specific' in result and 'source' in result['source_specific']:
+                source = result['source_specific']['source']
+                if source not in sources:
+                    sources.append(source)
+        
+        # 更新source_specific信息
+        if 'source_specific' not in merged_result:
+            merged_result['source_specific'] = {}
+        
+        merged_result['source_specific']['merged_from_sources'] = sources
+        merged_result['source_specific']['merge_count'] = 2
+        
+        # 合并引用计数（取最大值）
+        if 'article' in merged_result and 'article' in result2:
+            article1 = merged_result['article']
+            article2 = result2['article']
+            
+            # 取更大的引用数
+            if article2.get('citation_count', 0) > article1.get('citation_count', 0):
+                article1['citation_count'] = article2['citation_count']
+            
+            if article2.get('reference_count', 0) > article1.get('reference_count', 0):
+                article1['reference_count'] = article2['reference_count']
+        
+        return merged_result
+    
+    def _select_more_complete_result(self, result1: Dict, result2: Dict) -> Dict:
+        """选择更完整的结果
+        
+        Args:
+            result1: 结果1
+            result2: 结果2
+            
+        Returns:
+            更完整的结果
+        """
+        def completeness_score(result):
+            score = 0
+            
+            # 文章信息完整性
+            if 'article' in result:
+                article = result['article']
+                if article.get('title'): score += 10
+                if article.get('abstract'): score += 8
+                if article.get('publication_date'): score += 5
+                if article.get('citation_count', 0) > 0: score += 3
+            
+            # 作者信息完整性
+            if 'authors' in result and isinstance(result['authors'], list):
+                score += min(len(result['authors']) * 2, 10)
+            
+            # 标识符完整性
+            if 'identifiers' in result and isinstance(result['identifiers'], list):
+                score += min(len(result['identifiers']) * 3, 15)
+            
+            # 场所信息完整性
+            if 'venue' in result and result['venue'].get('venue_name'):
+                score += 5
+            
+            return score
+        
+        score1 = completeness_score(result1)
+        score2 = completeness_score(result2)
+        
+        return result1 if score1 >= score2 else result2
+
     def get_supported_sources(self) -> List[str]:
         """获取支持的数据源列表"""
         return list(self.search_apis.keys())
