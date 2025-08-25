@@ -13,21 +13,36 @@
 
 ## 📋 项目状态
 
-### ✅ 已完成功能
-- [x] 多个搜索API集成 (PubMed, ArXiv, bioRxiv, Semantic Scholar, WoS)
-- [x] 响应格式化器 - 统一数据格式
-- [x] 搜索聚合器 - 并行搜索和结果聚合
-- [x] 智能去重处理器 - 多重标识符去重
-- [x] 数据合并器 - 重复文献信息合并
-- [x] 数据验证器 - 质量检查和完整性验证
-- [x] 完整的数据库设计文档
-- [x] 项目架构设计和开发计划
+### ✅ 已完成核心功能
+- **多源聚合搜索**:
+  - [x] 并行搜索API集成 (PubMed, ArXiv, bioRxiv, Semantic Scholar, WoS)
+  - [x] 统一的`LiteratureSchema`数据结构
+  - [x] 搜索结果聚合
+- **数据处理**:
+  - [x] 基于标识符 (DOI, PMID, ArXiv ID) 的智能去重
+  - [x] 重复文献的信息合并
+  - [x] 数据验证和质量评估
+- **命令行工具**:
+  - [x] 功能完整的CLI (`main.py`)，支持搜索、指定数据源、过滤等
 
-### 🔄 开发中功能
-- [ ] 数据库模型实现
-- [ ] RESTful API接口
-- [ ] Web用户界面
-- [ ] 高级搜索语法
+### 🔄 未完成/开发中功能
+- **数据库模块**:
+  - [ ] **ORM模型实现**: SQLAlchemy的数据表模型尚未定义 (`src/database/models.py`缺失).
+  - [ ] **数据持久化**: 将搜索结果存入数据库的逻辑未实现.
+- **RESTful API**:
+  - [ ] **API路由**: `articles`和`export`路由缺失.
+  - [ ] **API功能**: 大部分API端点 (`/search/history`, `/search/save`, etc.) 只是占位符，没有实现.
+  - [ ] **数据模型转换**: 缺乏在`LiteratureSchema` (应用层) 和 Pydantic模型 (API层) 之间的转换逻辑.
+- **Web用户界面**:
+  - [ ] **前端**: 项目当前不包含任何Web界面代码.
+- **其他功能**:
+  - [ ] **高级搜索语法**: 尚未实现.
+  - [ ] **全面的单元和集成测试**: 测试覆盖率有待提高.
+
+### ⚠️ 已知问题
+- **API Bug**: `/api/v1/search` 端点调用了`SearchAggregator`中不存在的方法 (`search_all`, `deduplicate_results`)，应使用 `search_with_deduplication`.
+- **项目结构不一致**: `src/database/connection.py` 尝试从 `src/database/models.py` 导入模型，但应用层模型实际位于 `src/models/schemas.py`.
+- **API启动失败**: 由于`src/api/main.py`导入了不存在的路由模块 (`articles`, `export`)，API服务当前无法启动.
 
 ## 🛠️ 技术栈
 
@@ -145,20 +160,26 @@ print(f"质量分数: {result.quality_score}")
 
 ```
 src/
-├── search/                    # 搜索模块
-│   ├── aggregator.py         # 搜索聚合器 ✅
-│   ├── pubmed_search.py      # PubMed搜索API ✅
-│   ├── arxiv_search.py       # ArXiv搜索API ✅
-│   ├── semantic_search.py    # Semantic Scholar API ✅
-│   └── response_formatter.py # 响应格式化器 ✅
-├── processing/                # 数据处理模块
-│   ├── deduplicator.py       # 去重处理器 ✅
-│   ├── merger.py             # 数据合并器 ✅
-│   └── validator.py          # 数据验证器 ✅
-├── database/                  # 数据库模块 (待实现)
-├── api/                       # API接口模块 (待实现)
-└── web/                       # Web界面模块 (待实现)
+├── search/                    # ✅ 搜索模块 (功能已完成)
+│   ├── aggregator.py         # 搜索聚合器
+│   └── engine/               # 各数据源的搜索实现
+├── processing/                # ✅ 数据处理模块 (功能已完成)
+│   ├── deduplicator.py       # 去重处理器
+│   ├── merger.py             # 数据合并器
+│   └── validator.py          # 数据验证器
+├── models/                    # ✅ 应用数据模型 (非DB模型)
+│   ├── schemas.py            # LiteratureSchema等数据类定义
+│   └── enums.py              # 枚举类型定义
+├── database/                  # 🔄 数据库模块 (开发中)
+│   ├── connection.py         # 数据库连接管理 (已完成)
+│   └── models.py             # SQLAlchemy模型 (待实现)
+├── api/                       # 🔄 API接口模块 (开发中)
+│   ├── main.py               # FastAPI应用入口 (部分完成)
+│   ├── routes/               # API路由 (部分完成, 有bug)
+│   └── schemas.py            # Pydantic模型 (已定义)
+└── cli.py                     # ✅ 命令行接口
 ```
+(注: `web/` 目录尚未创建)
 
 ## 📚 文档
 
