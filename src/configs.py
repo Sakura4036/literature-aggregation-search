@@ -78,6 +78,9 @@ class AppConfig(
     WOSConfig,
     StorageConfig
     ):
+    DEBUG: bool = False
+    DATABASE_URL: str = "sqlite+aiosqlite:///./test.db"
+
     model_config = SettingsConfigDict(
         # read from dotenv format config file
         env_file=".env",
@@ -99,4 +102,7 @@ class AppConfig(
         return self.WOS_API_KEY.split(',') if self.WOS_API_KEY else []
 
 
-app_config = AppConfig()
+settings = AppConfig()
+
+def get_settings() -> AppConfig:
+    return settings

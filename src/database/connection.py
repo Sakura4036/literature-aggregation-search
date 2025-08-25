@@ -26,7 +26,7 @@ class AsyncDatabaseManager:
         self.database_url = database_url
         self.engine = create_async_engine(
             database_url,
-            echo=settings.debug,  # 开发环境显示SQL
+            echo=settings.DEBUG,  # 开发环境显示SQL
             poolclass=NullPool if "sqlite" in database_url else None,
             pool_pre_ping=True,
             pool_recycle=3600,  # 1小时回收连接
@@ -112,7 +112,7 @@ def get_db_manager() -> AsyncDatabaseManager:
     """获取全局数据库管理器实例"""
     global _db_manager
     if _db_manager is None:
-        _db_manager = AsyncDatabaseManager(settings.database_url)
+        _db_manager = AsyncDatabaseManager(settings.DATABASE_URL)
     return _db_manager
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:

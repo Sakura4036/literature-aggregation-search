@@ -7,8 +7,8 @@ from fastapi.responses import JSONResponse
 import uvicorn
 from contextlib import asynccontextmanager
 
-from .routes import search, articles, export
-from ..database.connection import AsyncDatabaseManager
+from .routes import search
+from ..database.connection import init_database, cleanup_database
 from ..configs import get_settings
 
 settings = get_settings()
@@ -16,12 +16,11 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
-    # 启动时初始化数据库连接
-    app.state.db_manager = AsyncDatabaseManager(settings.database_url)
+    # 启动时初始化数据库
+    await init_database()
     yield
     # 关闭时清理资源
-    if hasattr(app.state, 'db_manager'):
-        await app.state.db_manager.close()
+    await cleanup_database()
 
 # 创建FastAPI应用
 app = FastAPI(
