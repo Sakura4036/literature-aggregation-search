@@ -5,13 +5,12 @@ This module defines the database table structures using SQLAlchemy's declarative
 based on the design specified in `docs/database_design.md`.
 """
 
-import enum
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Text, Boolean, Date, DateTime,
-    ForeignKey, BigInteger, SmallInteger, Enum, UniqueConstraint, Index, func, DECIMAL
+    Column, Integer, String, Text, Boolean, Date, DateTime,
+    ForeignKey, BigInteger, SmallInteger, Enum, UniqueConstraint, Index, DECIMAL
 )
-from sqlalchemy.orm import declarative_base, relationship, backref
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 
 from src.models.enums import IdentifierType, VenueType, CategoryType, PublicationTypeSource
