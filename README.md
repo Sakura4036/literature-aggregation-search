@@ -1,4 +1,4 @@
- # 文献聚合搜索系统 (Literature Aggregation Search System)
+# 文献聚合搜索系统 (Literature Aggregation Search System)
 
 一个综合性的学术文献检索和管理平台，支持跨多个学术数据库的统一搜索、智能去重、数据聚合等功能。
 
@@ -15,40 +15,38 @@
 
 ### ✅ 已完成核心功能
 - **多源聚合搜索**:
-  - [x] 并行搜索API集成 (PubMed, ArXiv, bioRxiv, Semantic Scholar, WoS)
-  - [x] 统一的`LiteratureSchema`数据结构
-  - [x] 搜索结果聚合
+    - [x] 并行搜索API集成 (PubMed, ArXiv, bioRxiv, Semantic Scholar, WoS)
+    - [x] 统一的`LiteratureSchema`数据结构
+    - [x] 搜索结果聚合
 - **数据处理**:
-  - [x] 基于标识符 (DOI, PMID, ArXiv ID) 的智能去重
-  - [x] 重复文献的信息合并
-  - [x] 数据验证和质量评估
+    - [x] 基于标识符 (DOI, PMID, ArXiv ID) 的智能去重
+    - [x] 重复文献的信息合并
+    - [x] 数据验证和质量评估
+- **数据库模块**:
+    - [x] **ORM模型实现**: SQLAlchemy的数据表模型已定义 (`src/database/models.py`).
+    - [x] **数据持久化**: 将搜索结果存入数据库的逻辑已实现.
+- **RESTful API**:
+    - [x] **API路由**: `/api/v1/search`, `/api/v1/articles`, `/api/v1/export` 等核心路由已实现.
+    - [x] **文章查询**: 支持按ID查询单篇文章和分页查询文章列表.
+    - [x] **数据导出**: 支持将指定文章导出为JSON和CSV格式.
 - **命令行工具**:
-  - [x] 功能完整的CLI (`main.py`)，支持搜索、指定数据源、过滤等
+    - [x] 功能完整的CLI (`main.py`)，支持搜索、指定数据源、过滤等
 
 ### 🔄 未完成/开发中功能
-- **数据库模块**:
-  - [ ] **ORM模型实现**: SQLAlchemy的数据表模型尚未定义 (`src/database/models.py`缺失).
-  - [ ] **数据持久化**: 将搜索结果存入数据库的逻辑未实现.
-- **RESTful API**:
-  - [ ] **API路由**: `articles`和`export`路由缺失.
-  - [ ] **API功能**: 大部分API端点 (`/search/history`, `/search/save`, etc.) 只是占位符，没有实现.
-  - [ ] **数据模型转换**: 缺乏在`LiteratureSchema` (应用层) 和 Pydantic模型 (API层) 之间的转换逻辑.
 - **Web用户界面**:
-  - [ ] **前端**: 项目当前不包含任何Web界面代码.
+    - [ ] **前端**: 项目当前不包含任何Web界面代码.
 - **其他功能**:
-  - [ ] **高级搜索语法**: 尚未实现.
-  - [ ] **全面的单元和集成测试**: 测试覆盖率有待提高.
-
-### ⚠️ 已知问题
-- **API Bug**: `/api/v1/search` 端点调用了`SearchAggregator`中不存在的方法 (`search_all`, `deduplicate_results`)，应使用 `search_with_deduplication`.
-- **项目结构不一致**: `src/database/connection.py` 尝试从 `src/database/models.py` 导入模型，但应用层模型实际位于 `src/models/schemas.py`.
-- **API启动失败**: 由于`src/api/main.py`导入了不存在的路由模块 (`articles`, `export`)，API服务当前无法启动.
+    - [ ] **高级搜索语法**: 尚未实现.
+    - [ ] **全面的单元和集成测试**: 测试覆盖率有待提高.
+    - [ ] **BibTeX导出**: 导出功能暂不支持BibTeX格式.
+    - [ ] **按搜索查询导出**: 导出功能暂不支持按搜索查询导出.
 
 ## 🛠️ 技术栈
 
 - **后端**: Python 3.13+
-- **数据库**: PostgreSQL (设计完成，待实现)
-- **核心依赖**: requests, arxiv
+- **数据库**: PostgreSQL (已实现)
+- **核心依赖**: requests, arxiv, sqlalchemy
+- **API框架**: FastAPI
 - **API集成**: PubMed E-utilities, ArXiv API, Semantic Scholar API, bioRxiv API
 
 ## 📦 安装和使用
@@ -56,6 +54,7 @@
 ### 环境要求
 
 - Python 3.13+
+- Docker (推荐)
 - 相关依赖包 (见 `pyproject.toml`)
 
 ### 安装依赖
@@ -67,6 +66,18 @@ uv sync
 # 或使用pip
 pip install -r requirements.txt
 ```
+
+### 运行应用
+
+1. **启动数据库**
+   ```bash
+   docker-compose up -d
+   ```
+2. **启动API服务**
+   ```bash
+   uvicorn src.api.main:app --reload
+   ```
+   API文档位于 [http://localhost:8000/docs](http://localhost:8000/docs).
 
 ### 基本使用
 
@@ -170,12 +181,12 @@ src/
 ├── models/                    # ✅ 应用数据模型 (非DB模型)
 │   ├── schemas.py            # LiteratureSchema等数据类定义
 │   └── enums.py              # 枚举类型定义
-├── database/                  # 🔄 数据库模块 (开发中)
+├── database/                  # ✅ 数据库模块 (已完成)
 │   ├── connection.py         # 数据库连接管理 (已完成)
-│   └── models.py             # SQLAlchemy模型 (待实现)
-├── api/                       # 🔄 API接口模块 (开发中)
-│   ├── main.py               # FastAPI应用入口 (部分完成)
-│   ├── routes/               # API路由 (部分完成, 有bug)
+│   └── models.py             # SQLAlchemy模型 (已完成)
+├── api/                       # ✅ API接口模块 (已完成)
+│   ├── main.py               # FastAPI应用入口 (已完成)
+│   ├── routes/               # API路由 (已完成)
 │   └── schemas.py            # Pydantic模型 (已定义)
 └── cli.py                     # ✅ 命令行接口
 ```

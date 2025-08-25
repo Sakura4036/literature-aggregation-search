@@ -94,7 +94,13 @@ If you need to create or reset the database schema manually, you can use the pro
 2.  **Run the initialization script**:
     *A script for this will be provided in `scripts/cli.py` in a future update.* For now, the automatic initialization is the recommended approach.
 
-## 4. Database Migrations
+## 4. Database Models
+
+The database schema is defined using SQLAlchemy ORM models in `src/database/models.py`. These models represent the tables in the database and their relationships. The models are designed to be comprehensive and include tables for articles, authors, venues, and more.
+
+A DDL statement is used to create indexes on the `articles` table for full-text search. This is handled automatically during table creation.
+
+## 5. Database Migrations
 
 For managing changes to the database schema over time, we recommend using a migration tool like **Alembic**.
 
