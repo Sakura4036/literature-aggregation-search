@@ -3,7 +3,7 @@ Pydantic数据模型定义
 """
 from pydantic import BaseModel, Field, validator
 from typing import List, Optional, Dict, Any, Union
-from datetime import datetime
+from datetime import datetime, date
 from enum import Enum
 
 class DataSource(str, Enum):
@@ -64,6 +64,21 @@ class ArticleDetail(ArticleBase):
     is_open_access: bool = Field(default=False, description="是否开放获取")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
+
+from datetime import date
+
+class Article(BaseModel):
+    id: int
+    primary_doi: Optional[str] = None
+    title: str
+    abstract: Optional[str] = None
+    publication_year: Optional[int] = None
+    publication_date: Optional[date] = None
+    is_open_access: bool
+    open_access_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 class SearchResponse(BaseModel):
     """搜索响应模型"""

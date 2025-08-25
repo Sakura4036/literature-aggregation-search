@@ -7,7 +7,8 @@ based on the design specified in `docs/database_design.md`.
 
 from sqlalchemy import (
     Column, Integer, String, Text, Boolean, Date, DateTime,
-    ForeignKey, BigInteger, SmallInteger, Enum, UniqueConstraint, Index, DECIMAL
+    ForeignKey, BigInteger, SmallInteger, Enum, UniqueConstraint, Index, DECIMAL,
+    DDL
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import declarative_base, relationship
