@@ -3,9 +3,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import List
 
-from ...database.connection import get_db_session
-from ...database.models import Article
-from ..schemas import Article as ArticleSchema
+from src.database.connection import get_db_session
+from src.database.models import Article
+from src.api.schemas import Article as ArticleSchema
 
 router = APIRouter()
 

@@ -26,9 +26,9 @@
     - [x] **ORM模型实现**: SQLAlchemy的数据表模型已定义 (`src/database/models.py`).
     - [x] **数据持久化**: 将搜索结果存入数据库的逻辑已实现.
 - **RESTful API**:
-    - [x] **API路由**: `/api/v1/search`, `/api/v1/articles`, `/api/v1/export` 等核心路由已实现.
-    - [x] **文章查询**: 支持按ID查询单篇文章和分页查询文章列表.
-    - [x] **数据导出**: 支持将指定文章导出为JSON和CSV格式.
+    - [ ] **API路由**: `/api/v1/search`, `/api/v1/articles`, `/api/v1/export` 等核心路由已实现.
+    - [ ] **文章查询**: 支持按ID查询单篇文章和分页查询文章列表.
+    - [ ] **数据导出**: 支持将指定文章导出为JSON和CSV格式.
 - **命令行工具**:
     - [x] 功能完整的CLI (`main.py`)，支持搜索、指定数据源、过滤等
 

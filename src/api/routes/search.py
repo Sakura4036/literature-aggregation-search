@@ -1,22 +1,20 @@
 """
 搜索相关API路由
 """
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from typing import List, Optional
-import asyncio
 import time
 
-from ..schemas import SearchRequest, SearchResponse, SearchMetadata, ArticleDetail
-from ...search.aggregator import SearchAggregator
-from ...database.connection import get_db_session
-from ..dependencies import get_search_aggregator
+from fastapi import APIRouter, Depends, HTTPException
+
+from src.api.schemas import SearchRequest, SearchResponse, SearchMetadata
+from src.database.connection import get_db_session
+from src.search.aggregator import SearchAggregator
 
 router = APIRouter()
 
 @router.post("/search", response_model=SearchResponse)
 async def multi_source_search(
     request: SearchRequest,
-    aggregator: SearchAggregator = Depends(get_search_aggregator),
+    aggregator: SearchAggregator,
     db_session = Depends(get_db_session)
 ):
     """

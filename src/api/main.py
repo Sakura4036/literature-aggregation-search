@@ -7,9 +7,9 @@ from fastapi.responses import JSONResponse
 import uvicorn
 from contextlib import asynccontextmanager
 
-from .routes import search, articles, export
-from ..database.connection import init_database, cleanup_database
-from ..configs import get_settings
+from src.api.routes import search, articles, export
+from src.database.connection import init_database, cleanup_database
+from src.configs import get_settings
 
 settings = get_settings()
 

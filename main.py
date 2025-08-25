@@ -14,7 +14,7 @@ from typing import Optional, List
 # 添加src目录到Python路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from search.aggregator import search_literature
+from src.search.aggregator import search_literature
 
 
 def progress_callback(progress):

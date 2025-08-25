@@ -84,11 +84,7 @@ src/
 │   └── schemas.py            # Pydantic数据模型
 ├── search/                    # 搜索模块
 │   ├── __init__.py
-│   ├── pubmed_search.py      # PubMed搜索API
-│   ├── arxiv_search.py       # ArXiv搜索API
-│   ├── biorxiv_search.py     # bioRxiv搜索API
-│   ├── semantic_search.py    # Semantic Scholar搜索API
-│   ├── wos_search.py         # Web of Science搜索API
+│   ├── engine/               # 文献搜索引擎
 │   ├── response_formatter.py # 响应格式化器
 │   ├── aggregator.py         # 搜索聚合器
 │   └── utils.py              # 搜索工具函数
