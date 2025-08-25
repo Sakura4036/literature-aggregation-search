@@ -1,17 +1,17 @@
-import requests
-import logging
 import copy
-import json
+import logging
 import time
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Tuple, Optional
 
-from .base_engine import BaseSearchEngine, NetworkError, FormatError
-from src.models.schemas import LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, PublicationSchema, IdentifierSchema, CategorySchema, PublicationTypeSchema
+import requests
+
 from src.models.enums import IdentifierType, VenueType, CategoryType, PublicationTypeSource
-
+from src.models.schemas import LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, PublicationSchema, \
+    IdentifierSchema, CategorySchema, PublicationTypeSchema
+from src.search.engine.base_engine import BaseSearchEngine, NetworkError
 
 logger = logging.getLogger(__name__)
 
@@ -741,48 +741,6 @@ def process_papers(paper_list: list[dict]) -> list[dict]:
     
     return format_papers
 
-
-def semantic_bulk_search(query: str,
-                         year: str = '',
-                         document_type: str = '',
-                         fields_of_study: str = '',
-                         fields: str = '',
-                         num_results: int = 50,
-                         filtered: bool = False) -> tuple[list[dict], dict]:
-    """
-    Paper relevance search on Semantic Scholar using the new unified interface.
-    
-    This function provides backward compatibility while using the new BaseSearchEngine architecture.
-    
-    Args:
-        query: Search query string
-        year: Year range filter
-        document_type: Document type filter
-        fields_of_study: Fields of study filter
-        fields: Fields to return
-        num_results: Number of results to return
-        filtered: Whether to filter results
-        
-    Returns:
-        Tuple[List[Dict], Dict]: Formatted results and metadata
-    """
-    if not num_results:
-        return [], {}
-    
-    # Use the new unified search interface
-    api = SemanticBulkSearchAPI()
-    formatted_results, metadata = api.search(
-        query=query,
-        year=year,
-        document_type=document_type,
-        fields_of_study=fields_of_study,
-        fields=fields,
-        num_results=num_results,
-        filtered=filtered
-    )
-    
-    logger.debug(f"semantic_bulk_search result num: {len(formatted_results)}")
-    return formatted_results, metadata
 
 
 def semantic_batch_search(ids: list[str], fields: str = None, filtered: bool = True, max_query_size: int = 500,

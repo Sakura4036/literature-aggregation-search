@@ -1,7 +1,6 @@
 import xml.etree.ElementTree as ET
 import json
 from typing import Dict, List, Optional, Any
-from datetime import datetime
 
 
 def parse_pubmed_article_to_json(xml_content: str) -> List[Dict[str, Any]]:

@@ -5,19 +5,12 @@
 支持新的BaseSearchEngine架构和LiteratureSchema格式
 """
 
-import asyncio
 import logging
-from typing import Dict, List, Optional, Tuple, Any
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, List, Optional, Tuple, Any
 
-from .pubmed_search import PubmedSearchAPI
-from .arxiv_search import ArxivSearchAPI
-from .biorxiv_search import BioRxivSearchAPI
-from .semantic_search import SemanticBulkSearchAPI
-from .wos_search import WosSearchAPI
-from .base_engine import BaseSearchEngine
-from ..models.schemas import LiteratureSchema
+from .engine import *
 from ..models.enums import IdentifierType
 
 logger = logging.getLogger(__name__)

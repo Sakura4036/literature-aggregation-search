@@ -1,14 +1,25 @@
-import requests
-import logging
-import xml.etree.ElementTree as ET
-import time
-from datetime import datetime
-from typing import Dict, List, Tuple, Any, Optional
+"""
+PubMed search API implementation with enhanced XML parsing.
 
-from .base_engine import BaseSearchEngine, NetworkError, FormatError
-from .utils import year_split
-from src.models.schemas import LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, PublicationSchema, IdentifierSchema
-from src.models.enums import IdentifierType, VenueType
+This module provides search functionality for PubMed literature database,
+using improved XML parsing based on the pubmed_xml_parser implementation.
+"""
+
+import logging
+import time
+import requests
+import xml.etree.ElementTree as ET
+from typing import Dict, List, Tuple, Optional
+
+
+from src.search.engine.base_engine import BaseSearchEngine, NetworkError, FormatError
+from src.search.utils import year_split
+from .pubmed_xml_parser import parse_single_article
+from src.models.schemas import (
+    LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema,
+    PublicationSchema, IdentifierSchema, CategorySchema, PublicationTypeSchema
+)
+from src.models.enums import IdentifierType, VenueType, CategoryType, PublicationTypeSource
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +27,11 @@ logger = logging.getLogger(__name__)
 class PubmedSearchAPI(BaseSearchEngine):
     """
     PubMed search API implementation.
-    
+
     This class provides search functionality for PubMed literature database,
     inheriting from BaseSearchEngine to ensure consistent interface and behavior.
     """
-    
+
     def __init__(self):
         """Initialize PubMed search API."""
         super().__init__()
@@ -30,29 +41,31 @@ class PubmedSearchAPI(BaseSearchEngine):
         self.timeout_error_flag = False
         self.last_timeout_time = 0
         self.timeout_interval = 60
-    
+
     def get_source_name(self) -> str:
         """Get the name of the data source."""
         return "pubmed"
 
-    def query_for_pmid_list(self, query: str, year: str = '', field: str = '', restart: int = 0, retmax: int = 20, date_type: str = 'mdat',
-                            sort: str = 'relevance', retmode: str = 'json'):
+    def query_for_pmid_list(self, query: str, year: str = '', field: str = '',
+                            restart: int = 0, retmax: int = 20, date_type: str = 'mdat',
+                            sort: str = 'relevance', retmode: str = 'json') -> dict:
         """
-        执行单次PubMed搜索查询
-        api doc: https://www.ncbi.nlm.nih.gov/books/NBK25499/#chapter4.ESearch
+        Execute single PubMed search query.
+
+        API doc: https://www.ncbi.nlm.nih.gov/books/NBK25499/#chapter4.ESearch
 
         Args:
-            query: 搜索关键词
-            year: 年份, 格式为YYYY-YYYY
-            field: 搜索字段 ('Title', 'Abstract', 'Author', 'Journal')
-            restart: 起始结果索引
-            retmax: 返回结果数量, 最大值为10000
-            date_type: 日期类型 ('mdat', 'pdat', 'edat'), 其中edat支持reldate=int， 和（min_date, max_date）的形式， min_date和max_date的格式支持YYYY[/MM][/DD]
-            sort: 排序方式 ('relevance', 'pub_date', 'Author', 'JournalName')
-            retmode: 返回格式 ('json' or 'xml')
+            query: Search keywords
+            year: Year range, format YYYY-YYYY
+            field: Search field ('Title', 'Abstract', 'Author', 'Journal')
+            restart: Starting result index
+            retmax: Number of results to return, max 10000
+            date_type: Date type ('mdat', 'pdat', 'edat')
+            sort: Sort order ('relevance', 'pub_date', 'Author', 'JournalName')
+            retmode: Return format ('json' or 'xml')
 
         Returns:
-            dict: 包含搜索结果的字典
+            dict: Dictionary containing search results
         """
         retmax = min(retmax, 10000)
 
@@ -76,7 +89,8 @@ class PubmedSearchAPI(BaseSearchEngine):
             params['mindate'] = start
             params['maxdate'] = end
 
-        url = self.pubmed_search_url + '&'.join([f"{k}={v}" for k, v in params.items()])
+        url = self.pubmed_search_url + \
+            '&'.join([f"{k}={v}" for k, v in params.items()])
 
         result = {
             'count': 0,
@@ -92,9 +106,10 @@ class PubmedSearchAPI(BaseSearchEngine):
         retry = 0
         while True:
             try:
-                response = requests.get(url)
+                response = requests.get(url, timeout=30)
                 if response.status_code == 429 and retry < self.max_retry:
-                    logger.error(f"Too Many Requests, waiting for {self.sleep_time:.2f} seconds...")
+                    self.logger.warning("Too Many Requests, waiting for %.2f seconds...",
+                                        self.sleep_time)
                     time.sleep(self.sleep_time)
                     self.sleep_time *= 2
                     retry += 1
@@ -102,7 +117,7 @@ class PubmedSearchAPI(BaseSearchEngine):
                     response.raise_for_status()
                     break
             except Exception as e:
-                logger.error(f"Error in query_once: {e}")
+                self.logger.error("Error in query_once: %s", e)
                 return result
 
         response = response.json()
@@ -110,125 +125,52 @@ class PubmedSearchAPI(BaseSearchEngine):
             result.update(esearch_result)
         return result
 
-    def _parse_fetch_result(self, xml_text: str) -> list[dict]:
-        """解析PubMed返回的XML格式数据
-        
+    def _parse_fetch_result(self, xml_text: str) -> List[Dict]:
+        """
+        Parse PubMed XML response data using enhanced parsing logic.
+
         Args:
-            xml_text: XML格式的字符串数据
-            
+            xml_text: XML format string data
+
         Returns:
-            list[dict]: 解析后的文章信息列表
+            List[Dict]: List of parsed article information
         """
         try:
-            with open("temp.xml", 'w', encoding='utf-8') as wf:
-                wf.write(xml_text)
             root = ET.fromstring(xml_text)
             results = []
 
-            # 遍历每篇文章
+            # Process each article
             for article in root.findall('.//PubmedArticle'):
-                # 获取基本信息
-                pmid = article.find('.//PMID').text
-
-                # 获取标题
-                title_elem = article.find('.//ArticleTitle')
-                title = title_elem.text if title_elem is not None else ''
-
-                # 获取摘要
-                abstract_elem = article.find('.//AbstractText')
-                abstract = abstract_elem.text if abstract_elem is not None else ''
-
-                # 获取作者列表
-                authors = []
-                author_list = article.findall('.//Author')
-                for author in author_list:
-                    last_name = author.find('LastName')
-                    fore_name = author.find('ForeName')
-                    if last_name is not None and fore_name is not None:
-                        authors.append(f"{fore_name.text} {last_name.text}")
-
-                # 获取期刊信息
-                journal_elem = article.find('.//Journal/Title')
-                journal = journal_elem.text if journal_elem is not None else ''
-                issn = article.find('.//Journal/ISSN[@IssnType="Print"]')
-                issn = issn.text if issn is not None else ''
-                volume = article.find('.//Journal/JournalIssue/Volume')
-                volume = volume.text if volume is not None else ''
-                issue = article.find('.//Journal/JournalIssue/Issue')
-                issue = issue.text if issue is not None else ''
-                eissn = article.find('.//Journal/ISSN[@IssnType="Electronic"]')
-                eissn = eissn.text if eissn is not None else ''
-
-                # 获取DOI
-                doi_elem = article.find(".//ArticleId[@IdType='doi']")
-                doi = doi_elem.text if doi_elem is not None else ''
-
-                # 获取发布日期 - 优先使用pubmed状态的日期，其次使用entrez状态的日期
-                pub_date = article.find('.//PubMedPubDate[@PubStatus="pubmed"]')
-                if pub_date is None:
-                    pub_date = article.find('.//PubMedPubDate[@PubStatus="entrez"]')
-                pub_datetime = None
-                if pub_date is not None:
-                    year = pub_date.find('Year')
-                    month = pub_date.find('Month')
-                    day = pub_date.find('Day')
-                    if year is not None:
-                        pub_date_str = year.text
-                        if month is not None:
-                            if month.text in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']:
-                                month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].index(month.text) + 1  
-                                pub_date_str += f"-{month:02d}"
-                            else:
-                                pub_date_str += f"-{month.text}"
-                            if day is not None:
-                                pub_date_str += f"-{day.text}"
-                                pub_datetime = datetime.strptime(pub_date_str, '%Y-%m-%d').date()
-                            else:
-                                pub_datetime = datetime.strptime(pub_date_str, '%Y-%m').date()
-                        else:
-                            pub_datetime = datetime.strptime(pub_date_str, '%Y').date()
-                year = pub_datetime.year if pub_datetime else None
-                pub_datetime = pub_datetime.isoformat() if pub_datetime else None
-                # 构建文章信息字典
-                article_info = {
-                    'pmid': pmid,
-                    'title': title or '',
-                    'abstract': abstract or '',
-                    'authors': authors or [],
-                    'journal': journal or '',
-                    'issn': issn or '',
-                    'volume': volume or '',
-                    'issue': issue or '',
-                    'eissn': eissn or '',
-                    'doi': doi or '',
-                    'published_date': pub_datetime,
-                    'year': year
-                }
-
-                results.append(article_info)
+                article_data = parse_single_article(article)
+                if article_data:
+                    results.append(article_data)
 
             return results
 
         except ET.ParseError as e:
-            logger.error(f"XML解析错误: {e}")
+            self.logger.error("XML parsing error: %s", e)
             return []
         except Exception as e:
-            logger.error(f"解析PubMed数据时发生错误: {e}")
+            self.logger.error("Error parsing PubMed data: %s", e)
             return []
+    
+    def fetch_info_by_pmid_list(self, pmid_list: List[str], webenv: str = '',
+                                query_key: str = '', retstart: int = 0,
+                                retmax: int = 20) -> List[Dict]:
+        """
+        Fetch article information by PMID list.
 
-    def fetch_info_by_pmid_list(self, pmid_list: list[str], webenv: str = '', query_key: str = '', retstart: int = 0, retmax: int = 20) -> list[dict]:
-        """根据PMID列表获取文章信息
-        api文档：https://www.ncbi.nlm.nih.gov/books/NBK25499/#chapter4.EFetch
-        
+        API doc: https://www.ncbi.nlm.nih.gov/books/NBK25499/#chapter4.EFetch
+
         Args:
-            pmid_list: PMID列表
-            webenv: WebEnv参数，用于从Entrez History server获取结果
-            query_key: Query key参数，与WebEnv配合使用
-            retstart: 起始结果索引
-            retmax: 返回结果数量
-            
+            pmid_list: List of PMIDs
+            webenv: WebEnv parameter for Entrez History server
+            query_key: Query key parameter used with WebEnv
+            retstart: Starting result index
+            retmax: Number of results to return
+
         Returns:
-            list[dict]: 解析后的文章信息列表
+            List[Dict]: List of parsed article information
         """
         while self._check_timeout_error():
             time.sleep(3)
@@ -251,21 +193,24 @@ class PubmedSearchAPI(BaseSearchEngine):
         else:
             # 将PMID列表转换为逗号分隔的字符串
             params['id'] = ','.join(str(pmid) for pmid in pmid_list)
-        # 构建完整URL
+        # Build complete URL
         if pmid_list_len < 100:
-            url = self.pubmed_fetch_url + '&'.join([f"{k}={v}" for k, v in params.items()])
+            url = self.pubmed_fetch_url + \
+                '&'.join([f"{k}={v}" for k, v in params.items()])
         else:
             url = self.pubmed_fetch_url
 
         retry = 0
         while retry < self.max_retry:
             try:
-                response = requests.get(url) if pmid_list_len < 100 else requests.post(url, data=params)
+                if pmid_list_len < 100:
+                    response = requests.get(url, timeout=30)
+                else:
+                    response = requests.post(url, data=params, timeout=30)
+
                 if response.status_code == 429:
-                    logger.debug(
-                        f"Too Many Requests, "
-                        f"waiting for {self.sleep_time:.2f} seconds..."
-                    )
+                    self.logger.debug("Too Many Requests, waiting for %.2f seconds...",
+                                      self.sleep_time)
                     time.sleep(self.sleep_time)
                     self.sleep_time *= 2
                     retry += 1
@@ -275,13 +220,23 @@ class PubmedSearchAPI(BaseSearchEngine):
                 return self._parse_fetch_result(response.content.decode("utf-8"))
 
             except requests.exceptions.RequestException as e:
-                logger.error(f"请求PubMed API时发生错误: {e}")
+                self.logger.error("Error requesting PubMed API: %s", e)
                 retry += 1
 
-        logger.error(f"在{self.max_retry}次重试后仍未成功获取数据")
+        self.logger.error(
+            "Failed to get data after %d retries", self.max_retry)
         return []
 
     def get_pmid_by_doi(self, doi: str) -> str:
+        """
+        Get PMID by DOI.
+
+        Args:
+            doi: DOI string
+
+        Returns:
+            str: PMID if found, empty string otherwise
+        """
         while self._check_timeout_error():
             time.sleep(3)
         esearch_url = self.pubmed_search_url + f"db=pubmed&term={doi}[DOI]"
@@ -289,32 +244,38 @@ class PubmedSearchAPI(BaseSearchEngine):
             esearch_response = requests.get(esearch_url, timeout=10)
             esearch_tree = ET.fromstring(esearch_response.content)
             pmid = esearch_tree.findtext('IdList/Id')
+            return pmid or ""
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-            logger.error(f"Pubmed 请求超时或连接错误: {e}")
+            self.logger.error(
+                "PubMed request timeout or connection error: %s", e)
             self.timeout_error_flag = True
             self.last_timeout_time = time.time()
-            raise TimeoutError(f"Pubmed 请求超时或连接错误 {e}")
+            raise TimeoutError(
+                f"PubMed request timeout or connection error: {e}") from e
         except Exception as e:
-            logger.error(f"Error in get_pmid_by_doi for doi {doi}: {e}")
+            self.logger.error(
+                "Error in get_pmid_by_doi for doi %s: %s", doi, e)
             return ""
-        return pmid
 
-    def query(self, query: str, year: str = '', field: str = '', sort: str = 'relevance', num_results: int = 20):
+    def query(self, query: str, year: str = '', field: str = '',
+              sort: str = 'relevance', num_results: int = 20):
         """
-        执行完整的PubMed搜索查询
-        
+        Execute complete PubMed search query.
+
         Args:
-            query: 搜索关键词
-            year: 年份范围 ('YYYY-' or '-YYYY' or 'YYYY-YYYY')
-            field: 搜索字段
-            sort: 排序方式
-            num_results: 需要返回的结果数量, 最大值10000
+            query: Search keywords
+            year: Year range ('YYYY-' or '-YYYY' or 'YYYY-YYYY')
+            field: Search field
+            sort: Sort order
+            num_results: Number of results to return, max 10000
 
         Returns:
-            tuple: (paper字典列表, 元数据)
+            tuple: (paper dictionary list, metadata)
         """
-        # 初始查询
-        search_results = self.query_for_pmid_list(query, year, field=field, retmax=num_results, sort=sort)
+        # Initial query
+        search_results = self.query_for_pmid_list(
+            query, year, field=field, retmax=num_results, sort=sort
+        )
         pmid_list = search_results.get('idlist', [])
         webenv = search_results.get('webenv', '')
         query_key = search_results.get('querykey', '')
@@ -324,18 +285,20 @@ class PubmedSearchAPI(BaseSearchEngine):
         if not pmid_list:
             return [], search_results
 
-        # sleep for a while to avoid being blocked by PubMed
+        # Sleep to avoid being blocked by PubMed
         time.sleep(1)
 
-        # fetch paper info with pmid list
-        papers = self.fetch_info_by_pmid_list(pmid_list, webenv, query_key, retstart=retstart, retmax=retmax)
+        # Fetch paper info with pmid list
+        papers = self.fetch_info_by_pmid_list(
+            pmid_list, webenv, query_key, retstart=retstart, retmax=retmax
+        )
 
         return papers, search_results
 
     def _search(self, query: str, **kwargs) -> Tuple[List[Dict], Dict]:
         """
         Execute raw PubMed search.
-        
+
         Args:
             query: Search query string
             **kwargs: Additional search parameters including:
@@ -343,10 +306,10 @@ class PubmedSearchAPI(BaseSearchEngine):
                 - field: Search field
                 - sort: Sort order ('relevance', 'pub_date')
                 - num_results: Number of results to return
-                
+
         Returns:
             Tuple[List[Dict], Dict]: Raw search results and metadata
-            
+
         Raises:
             NetworkError: If API requests fail
         """
@@ -356,7 +319,7 @@ class PubmedSearchAPI(BaseSearchEngine):
             field = kwargs.get('field', '')
             sort = kwargs.get('sort', 'relevance')
             num_results = kwargs.get('num_results', self.default_results)
-            
+
             # Execute query to get article list
             articles, metadata = self.query(
                 query=query,
@@ -365,77 +328,103 @@ class PubmedSearchAPI(BaseSearchEngine):
                 sort=sort,
                 num_results=num_results,
             )
-            
+
             return articles, metadata
-            
+
         except Exception as e:
-            self.logger.error(f"Error in PubMed search: {e}")
+            self.logger.error("Error in PubMed search: %s", e)
             raise NetworkError(f"PubMed search failed: {e}") from e
-    
+
     def _response_format(self, results: List[Dict]) -> List[Dict]:
         """
         Format raw PubMed results into standardized LiteratureSchema format.
-        
+
         Args:
             results: Raw search results from PubMed API
-            
+
         Returns:
             List[Dict]: Formatted results conforming to LiteratureSchema
-            
+
         Raises:
             FormatError: If formatting fails
         """
         try:
             formatted_results = []
-            
+
             for item in results:
                 try:
+                    # Extract DOI from identifiers
+                    identifiers_dict = item.get('identifiers', {})
+                    doi = (identifiers_dict.get('doi') or
+                           identifiers_dict.get('elocation_doi') or None)
+
                     # Create article schema
                     article = ArticleSchema(
-                        primary_doi=item.get('doi') or None,
+                        primary_doi=doi,
                         title=item.get('title', ''),
                         abstract=item.get('abstract') or None,
+                        language=item.get('language', 'eng'),
                         publication_year=item.get('year'),
                         publication_date=item.get('published_date'),
                         is_open_access=False,  # PubMed doesn't provide this directly
                         open_access_url=None
                     )
-                    
+
                     # Create author schemas
                     authors = []
-                    for i, author_name in enumerate(item.get('authors', [])):
-                        if author_name and author_name.strip():
-                            authors.append(AuthorSchema(
-                                full_name=author_name.strip(),
-                                author_order=i + 1
-                            ))
-                    
+                    for i, author_data in enumerate(item.get('authors', [])):
+                        if isinstance(author_data, dict):
+                            # Build full name
+                            fore_name = author_data.get('fore_name', '')
+                            last_name = author_data.get('last_name', '')
+                            full_name = f"{fore_name} {last_name}".strip()
+
+                            if full_name:
+                                # Get first affiliation if available
+                                affiliations = author_data.get(
+                                    'affiliations', [])
+                                affiliation = affiliations[0] if affiliations else None
+
+                                authors.append(AuthorSchema(
+                                    full_name=full_name,
+                                    last_name=last_name or None,
+                                    fore_name=fore_name or None,
+                                    initials=author_data.get(
+                                        'initials') or None,
+                                    affiliation=affiliation,
+                                    author_order=i + 1
+                                ))
+
                     # Create venue schema
                     venue = VenueSchema(
-                        venue_name=item.get('journal', ''),
+                        venue_name=item.get('journal_title', ''),
                         venue_type=VenueType.JOURNAL,
-                        issn_print=item.get('issn') or None,
-                        issn_electronic=item.get('eissn') or None
+                        iso_abbreviation=item.get(
+                            'journal_iso_abbreviation') or None,
+                        issn_print=item.get('issn_print') or None,
+                        issn_electronic=item.get('issn_electronic') or None
                     )
-                    
+
                     # Create publication schema
                     publication = PublicationSchema(
                         volume=item.get('volume') or None,
-                        issue=item.get('issue') or None
+                        issue=item.get('issue') or None,
+                        start_page=item.get('start_page') or None,
+                        end_page=item.get('end_page') or None,
+                        page_range=item.get('medline_pgn') or None
                     )
-                    
+
                     # Create identifiers
                     identifiers = []
-                    
+
                     # Add DOI if present
-                    doi = item.get('doi')
                     if doi and doi.strip():
                         identifiers.append(IdentifierSchema(
                             identifier_type=IdentifierType.DOI,
                             identifier_value=doi.strip(),
                             is_primary=True
                         ))
-                    
+
                     # Add PMID if present
                     pmid = item.get('pmid')
                     if pmid and str(pmid).strip():
@@ -444,7 +433,43 @@ class PubmedSearchAPI(BaseSearchEngine):
                             identifier_value=str(pmid).strip(),
                             is_primary=not bool(doi)  # Primary if no DOI
                         ))
-                    
+
+                    # Add PMC ID if present
+                    pmc_id = identifiers_dict.get('pmc')
+                    if pmc_id and pmc_id.strip():
+                        identifiers.append(IdentifierSchema(
+                            identifier_type=IdentifierType.PMC_ID,
+                            identifier_value=pmc_id.strip(),
+                            is_primary=False
+                        ))
+
+                    # Create categories from MeSH headings
+                    categories = []
+                    for mesh_heading in item.get('mesh_headings', []):
+                        descriptor_name = mesh_heading.get(
+                            'descriptor_name', '')
+                        if descriptor_name:
+                            is_major = mesh_heading.get(
+                                'major_topic_yn', 'N') == 'Y'
+                            categories.append(CategorySchema(
+                                category_name=descriptor_name,
+                                category_code=mesh_heading.get(
+                                    'descriptor_ui'),
+                                category_type=CategoryType.MESH_DESCRIPTOR,
+                                is_major_topic=is_major
+                            ))
+
+                    # Create publication types
+                    publication_types = []
+                    for pub_type in item.get('publication_types', []):
+                        type_name = pub_type.get('type', '')
+                        if type_name:
+                            publication_types.append(PublicationTypeSchema(
+                                type_name=type_name,
+                                type_code=pub_type.get('ui'),
+                                source_type=PublicationTypeSource.PUBMED
+                            ))
+
                     # Create complete literature schema
                     literature = LiteratureSchema(
                         article=article,
@@ -452,17 +477,20 @@ class PubmedSearchAPI(BaseSearchEngine):
                         venue=venue,
                         publication=publication,
                         identifiers=identifiers,
+                        categories=categories,
+                        publication_types=publication_types,
                         source_specific={
                             'source': self.get_source_name(),
                             'raw_data': item
                         }
                     )
-                    
+
                     # Validate the schema
                     is_valid, errors = literature.validate()
                     if not is_valid:
-                        self.logger.warning(f"Schema validation failed for item: {errors}")
-                    
+                        self.logger.warning(
+                            "Schema validation failed for item: %s", errors)
+
                     # Convert to dict for return with proper enum handling
                     result_dict = {
                         'article': {
@@ -516,88 +544,70 @@ class PubmedSearchAPI(BaseSearchEngine):
                                 'is_primary': identifier.is_primary
                             } for identifier in identifiers
                         ],
-                        'categories': [],
-                        'publication_types': [],
+                        'categories': [
+                            {
+                                'category_name': category.category_name,
+                                'category_code': category.category_code,
+                                'category_type': category.category_type.value,
+                                'is_major_topic': category.is_major_topic,
+                                'confidence_score': category.confidence_score
+                            } for category in categories
+                        ],
+                        'publication_types': [
+                            {
+                                'type_name': pub_type.type_name,
+                                'type_code': pub_type.type_code,
+                                'source_type': pub_type.source_type.value
+                            } for pub_type in publication_types
+                        ],
                         'source_specific': literature.source_specific
                     }
-                    
+
                     formatted_results.append(result_dict)
-                    
+
                 except Exception as e:
-                    self.logger.error(f"Error formatting individual PubMed result: {e}")
+                    self.logger.error(
+                        "Error formatting individual PubMed result: %s", e)
                     # Continue processing other results
                     continue
-            
+
             return formatted_results
-            
+
         except Exception as e:
-            self.logger.error(f"Error formatting PubMed results: {e}")
+            self.logger.error("Error formatting PubMed results: %s", e)
             raise FormatError(f"Failed to format PubMed results: {e}") from e
 
     def validate_params(self, query: str, **kwargs) -> bool:
         """
         Validate PubMed-specific search parameters.
-        
+
         Args:
             query: Search query string
             **kwargs: Additional search parameters
-            
+
         Returns:
             bool: True if parameters are valid, False otherwise
         """
         # Call parent validation first
         if not super().validate_params(query, **kwargs):
             return False
-        
+
         # PubMed-specific validation
         field = kwargs.get('field')
         if field is not None:
             # Validate PubMed field format (should be in brackets like [Title])
-            valid_fields = ['Title', 'Title/Abstract', 'Author', 'Journal', 'MeSH Terms', 'Date - Publication']
+            valid_fields = ['Title', 'Title/Abstract', 'Author',
+                            'Journal', 'MeSH Terms', 'Date - Publication']
             if field and not any(f"[{vf}]" in field for vf in valid_fields):
                 # Allow field without brackets for backward compatibility
                 pass
-        
+
         sort = kwargs.get('sort', 'relevance')
         if sort not in ['relevance', 'pub_date', 'Author', 'JournalName']:
-            self.logger.error(f"Invalid sort parameter for PubMed: {sort}")
+            self.logger.error("Invalid sort parameter for PubMed: %s", sort)
             return False
-        
+
         return True
-    
-    def search_legacy(self, query: str, year: str = '', field: str = '', sort: str = 'relevance', num_results: int = 20):
-        """
-        Legacy search method for backward compatibility.
-        
-        This method maintains the original interface while using the new architecture internally.
-        
-        Args:
-            query: Search query string
-            year: Year range
-            field: Search field
-            sort: Sort order
-            num_results: Number of results to return
-            
-        Returns:
-            tuple: (formatted articles, metadata)
-        """
-        # Use the new search method
-        formatted_results, metadata = self.search(
-            query=query,
-            year=year,
-            field=field,
-            sort=sort,
-            num_results=num_results
-        )
-        
-        # Convert back to legacy format if needed
-        legacy_results = []
-        for result in formatted_results:
-            # Extract raw data from source_specific
-            raw_data = result.get('source_specific', {}).get('raw_data', {})
-            legacy_results.append(raw_data)
-        
-        return legacy_results, metadata
 
     def _check_timeout_error(self):
         current_time = time.time()
@@ -607,23 +617,15 @@ class PubmedSearchAPI(BaseSearchEngine):
         self.last_timeout_time = current_time
         return False
 
- 
 
 def main():
     """Main function for testing PubMed search functionality."""
-    import sys
-    import os
-    
-    # Add the project root to Python path for proper imports
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
-    
+
     api = PubmedSearchAPI()
 
     # Test search
     data, metadata = api.search(
-        '"Enzymes"[Mesh] AND ncbijournals[filter]', 
+        '"Enzymes"[Mesh] AND ncbijournals[filter]',
         num_results=3
     )
     print("Search Results:")

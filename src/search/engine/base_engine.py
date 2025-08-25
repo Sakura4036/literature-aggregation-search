@@ -8,8 +8,8 @@ different data sources.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple, Any, Optional, Union
 from datetime import datetime
+from typing import Dict, List, Tuple, Any
 
 # Configure logger
 logger = logging.getLogger(__name__)

@@ -3,8 +3,8 @@ import math
 from typing import Generator, List, Dict, Tuple, Any
 import arxiv
 from urllib.parse import urlencode
-from .utils import year_split
-from .base_engine import BaseSearchEngine, NetworkError, FormatError
+from src.search.utils import year_split
+from src.search.engine.base_engine import BaseSearchEngine, NetworkError, FormatError
 from src.models.schemas import LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, IdentifierSchema, CategorySchema
 from src.models.enums import IdentifierType, VenueType, CategoryType
 
@@ -427,33 +427,6 @@ class ArxivSearchAPI(BaseSearchEngine):
         
         return True
     
-    # Backward compatibility method
-    def search_legacy(self, query: str = None, id_list: list[str] = None, num_results: int = 10,
-                     sort_by: str = 'relevance', sort_order: str = 'descending', year: str = None):
-        """
-        Legacy search method for backward compatibility.
-        
-        This method maintains the original interface while using the new base class architecture.
-        """
-        # Convert parameters to new format
-        kwargs = {
-            'num_results': num_results,
-            'id_list': id_list or [],
-            'sort_by': sort_by,
-            'sort_order': sort_order,
-            'year': year
-        }
-        
-        # Use the new search method
-        formatted_results, metadata = self.search(query or '', **kwargs)
-        
-        # Convert back to legacy format if needed
-        legacy_results = []
-        for result in formatted_results:
-            legacy_results.append(result['source_specific']['raw_data'])
-        
-        return legacy_results, metadata
-
 
 if __name__ == "__main__":
     api = ArxivSearchAPI()

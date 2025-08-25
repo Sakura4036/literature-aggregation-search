@@ -1,15 +1,16 @@
 import logging
-import requests
 from datetime import datetime
 from typing import Optional, Tuple, List, Dict
 
-from .utils import year_split
-from .base_engine import BaseSearchEngine, NetworkError, FormatError
+import requests
+
+from src.models.enums import IdentifierType, VenueType, CategoryType, PublicationTypeSource
 from src.models.schemas import (
-    LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, 
+    LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema,
     IdentifierSchema, CategorySchema, PublicationTypeSchema
 )
-from src.models.enums import IdentifierType, VenueType, CategoryType, PublicationTypeSource
+from src.search.engine.base_engine import BaseSearchEngine, NetworkError
+from src.search.utils import year_split
 
 logger = logging.getLogger(__name__)
 
@@ -325,42 +326,6 @@ class BioRxivSearchAPI(BaseSearchEngine):
                 continue
         
         return formatted_results
-
-    def search_legacy(self, query: str = '', year: str = '', num_results: int = 50,
-                     server: str = 'biorxiv') -> Tuple[List[Dict], Dict]:
-        """
-        Legacy search method for backward compatibility.
-        
-        This method maintains the original interface while using the new base class architecture.
-        
-        Args:
-            query: 查询DOI
-            year: 年份范围
-            num_results: 需要返回的结果数量
-            server: 服务器类型(biorxiv或medrxiv)
-            
-        Returns:
-            Tuple[List[Dict], Dict]: (论文列表, 元数据)
-        """
-        # Convert parameters to new format, filtering out empty values
-        kwargs = {
-            'num_results': num_results,
-            'server': server
-        }
-        
-        # Only add year if it's not empty
-        if year and year.strip():
-            kwargs['year'] = year
-        
-        # Use the new search method
-        formatted_results, metadata = self.search(query, **kwargs)
-        
-        # Convert back to legacy format if needed
-        legacy_results = []
-        for result in formatted_results:
-            legacy_results.append(result['source_specific']['raw_data'])
-        
-        return legacy_results, metadata
 
 
 if __name__ == "__main__":

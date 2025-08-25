@@ -8,8 +8,8 @@ import logging
 from datetime import datetime, timedelta
 import threading
 
-from .base_engine import BaseSearchEngine, NetworkError, FormatError
-from .utils import year_split
+from src.search.engine.base_engine import BaseSearchEngine, NetworkError, FormatError
+from src.search.utils import year_split
 from src.models.schemas import (
     LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, 
     PublicationSchema, IdentifierSchema, CategorySchema, PublicationTypeSchema
