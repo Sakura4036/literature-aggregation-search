@@ -555,9 +555,9 @@ class WosSearchAPI(BaseSearchEngine):
 
     def search(self, query: str,
                query_type: str = 'TS',
-               year: str = "",
+               year: str = None,
                document_type: str = '',
-               limit: int = 50,
+               num_results: int = 50,
                sort_field: str = 'RS+D',
                db: str = 'WOK') -> tuple[list[dict], dict]:
         """
@@ -569,7 +569,7 @@ class WosSearchAPI(BaseSearchEngine):
         :param query_type: query type, default is 'TS'(Topic, Title, Abstract, Author Keywords, Keywords Plus)
         :param year: publication year, format: 'YYYY' or 'YYYY-YYYY'
         :param document_type: document type, default is ''
-        :param limit: number of results to return
+        :param num_results: number of results to return
         :param sort_field: sort field, default is 'RS+D'(Relevance + Descending)
         :param db: database name, default is 'WOK'(all databases), 'WOS' for Web of Science Core Collection,
         :return: list of papers, metadata
@@ -579,7 +579,7 @@ class WosSearchAPI(BaseSearchEngine):
             'query_type': query_type,
             'year': year,
             'document_type': document_type,
-            'num_results': limit,
+            'num_results': num_results,
             'sort_field': sort_field,
             'db': db
         }

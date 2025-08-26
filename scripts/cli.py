@@ -4,214 +4,333 @@
 import click
 import asyncio
 import json
+import csv
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional, Any
 
 # 添加项目根目录到Python路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.search.aggregator import SearchAggregator
-from src.database.connection import AsyncDatabaseManager
 from src.configs import get_settings
+from src.models.schemas import LiteratureSchema
 
 settings = get_settings()
+
+# --- Utility Functions ---
+
+def _flatten_article(article_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Flattens a nested article dictionary for CSV export. Returns None if data is malformed."""
+    if not isinstance(article_data, dict):
+        click.echo(f"Warning: Skipping malformed search result item: {type(article_data)}", err=True)
+        return None
+
+    try:
+        # Use LiteratureSchema to structure and default the data
+        schema = LiteratureSchema.from_dict(article_data)
+
+        # Flatten authors
+        authors_list = [f"{author.full_name} ({author.affiliation or 'N/A'})" for author in schema.authors]
+
+        return {
+            "title": schema.article.title,
+            "authors": "; ".join(authors_list),
+            "publication_year": schema.article.publication_year,
+            "venue": schema.venue.venue_name,
+            "doi": schema.get_doi(),
+            "pmid": schema.get_pmid(),
+            "arxiv_id": schema.get_arxiv_id(),
+            "abstract": schema.article.abstract,
+            "citation_count": schema.article.citation_count,
+            "source": article_data.get('source_specific', {}).get('source', 'N/A'),
+        }
+    except Exception as e:
+        click.echo(f"Warning: Could not process article. Error: {e}. Skipping.", err=True)
+        return None
+
+async def _save_as_json(results: Dict[str, Any], output_path: str):
+    """Saves search results as a JSON file."""
+    with open(output_path, 'w', encoding='utf-8') as f:
+        json.dump(results, f, ensure_ascii=False, indent=2)
+
+async def _save_as_csv(results: Dict[str, Any], output_path: str):
+    """Saves search results as a CSV file."""
+    articles = results.get('results', [])
+    if not articles:
+        click.echo("No articles to save.")
+        return
+
+    # Flatten and filter out malformed articles
+    flat_articles = [_flatten_article(article) for article in articles]
+    valid_articles = [article for article in flat_articles if article is not None]
+
+    if not valid_articles:
+        click.echo("No valid data to write to CSV.")
+        return
+
+    fieldnames = list(valid_articles[0].keys())
+
+    with open(output_path, 'w', encoding='utf-8', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(valid_articles)
+
+async def _save_as_txt(results: Dict[str, Any], output_path: str):
+    """Saves search results as a human-readable text file."""
+    articles = results.get('results', [])
+    valid_articles = [article for article in articles if isinstance(article, dict)]
+
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(f"Found {len(valid_articles)} valid articles.\n")
+        f.write("=" * 20 + "\n\n")
+        for i, article_data in enumerate(valid_articles, 1):
+            try:
+                schema = LiteratureSchema.from_dict(article_data)
+                f.write(f"#{i}: {schema.article.title}\n")
+                f.write(f"  Authors: {'; '.join([a.full_name for a in schema.authors])}\n")
+                f.write(f"  Venue: {schema.venue.venue_name} ({schema.article.publication_year})\n")
+                f.write(f"  DOI: {schema.get_doi() or 'N/A'}\n")
+                f.write(f"  Abstract: {schema.article.abstract or 'N/A'}\n\n")
+            except Exception as e:
+                click.echo(f"Warning: Could not process article for TXT output. Error: {e}. Skipping.", err=True)
+
+
+async def _save_results(results: Dict[str, Any], output_path: str, format: str, verbose: bool):
+    """Dispatches saving results to the correct format handler."""
+    try:
+        output_file = Path(output_path)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        if format == 'json':
+            await _save_as_json(results, output_path)
+        elif format == 'csv':
+            await _save_as_csv(results, output_path)
+        elif format == 'txt':
+            await _save_as_txt(results, output_path)
+
+        if verbose:
+            click.echo(f"Results saved to: {output_path}")
+
+    except Exception as e:
+        click.echo(f"Failed to save file: {str(e)}", err=True)
+
+def _display_as_json(results: Dict[str, Any]):
+    """Displays search results as JSON in the console."""
+    click.echo(json.dumps(results, ensure_ascii=False, indent=2))
+
+def _display_as_summary(results: Dict[str, Any]):
+    """Displays a summary of search results in the console."""
+    articles = results.get('results', [])
+    valid_articles = [article for article in articles if isinstance(article, dict)]
+
+    click.echo(f"Found {len(valid_articles)} valid articles:")
+    for i, article_data in enumerate(valid_articles[:10], 1):
+        try:
+            schema = LiteratureSchema.from_dict(article_data)
+            click.echo(f"{i}. {schema.article.title} ({schema.article.publication_year})")
+            click.echo(f"   DOI: {schema.get_doi() or 'N/A'}")
+        except Exception as e:
+             click.echo(f"Warning: Could not display article. Error: {e}. Skipping.", err=True)
+
+    if len(valid_articles) > 10:
+        click.echo(f"... and {len(valid_articles) - 10} more.")
+
+async def _display_results(results: Dict[str, Any], format: str, verbose: bool):
+    """Dispatches displaying results to the correct format handler."""
+    try:
+        if format == 'json':
+            _display_as_json(results)
+        else:
+            _display_as_summary(results)
+    except Exception as e:
+        click.echo(f"Failed to display results: {str(e)}", err=True)
+
+# --- CLI Commands ---
 
 @click.group()
 @click.version_option(version="1.0.0")
 def cli():
     """
-    文献聚合搜索系统CLI工具
-    
-    支持多源文献搜索、数据管理和导出功能。
+    Literature Aggregation Search System CLI Tool.
+    Supports multi-source literature search, data management, and export functions.
     """
     pass
 
 @cli.command()
-@click.option('--query', '-q', required=True, help='搜索查询字符串')
+@click.option('--query', '-q', required=True, help='Search query string.')
 @click.option('--sources', '-s', multiple=True, 
               default=['pubmed', 'arxiv', 'semantic_scholar'],
-              help='数据源 (可多选): pubmed, arxiv, biorxiv, semantic_scholar, web_of_science')
-@click.option('--limit', '-l', default=100, help='结果数量限制 (默认: 100)')
-@click.option('--output', '-o', help='输出文件路径 (可选)')
+              type=click.Choice(['pubmed', 'arxiv', 'biorxiv', 'semantic_scholar', 'wos']),
+              help='Data source (multiple allowed).')
+@click.option('--limit', '-l', default=20, help='Limit on the number of results (default: 20).')
+@click.option('--output', '-o', help='Output file path (optional).')
 @click.option('--format', '-f', type=click.Choice(['json', 'csv', 'txt']), 
-              default='json', help='输出格式 (默认: json)')
+              default='json', help='Output format (default: json).')
 @click.option('--deduplicate/--no-deduplicate', default=True, 
-              help='是否去重 (默认: 启用)')
-@click.option('--verbose', '-v', is_flag=True, help='详细输出')
+              help='Enable/disable deduplication (default: enabled).')
+@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output.')
 def search(query: str, sources: tuple, limit: int, output: Optional[str], 
            format: str, deduplicate: bool, verbose: bool):
     """
-    执行多源文献搜索
+    Perform a multi-source literature search.
     
-    示例:
+    Examples:
     \b
-    # 基本搜索
+    # Basic search
     python -m scripts.cli search -q "machine learning"
     
-    # 指定数据源和输出文件
+    # Specify sources and output file
     python -m scripts.cli search -q "CRISPR" -s pubmed -s arxiv -o results.json
     
-    # 大量结果搜索
-    python -m scripts.cli search -q "COVID-19" -l 1000 --no-deduplicate
+    # Search for a large number of results without deduplication
+    python -m scripts.cli search -q "COVID-19" -l 100 --no-deduplicate
     """
     async def _search():
         try:
             if verbose:
-                click.echo(f"开始搜索: {query}")
-                click.echo(f"数据源: {', '.join(sources)}")
-                click.echo(f"结果限制: {limit}")
+                click.echo(f"Starting search for: '{query}'")
+                click.echo(f"Sources: {', '.join(sources)}")
+                click.echo(f"Result limit: {limit}")
             
-            # 初始化搜索聚合器
             aggregator = SearchAggregator()
             
-            # 执行搜索
-            with click.progressbar(length=100, label='搜索中...') as bar:
-                results = await aggregator.search_all(
+            with click.progressbar(length=100, label='Searching...') as bar:
+                def progress_callback(p):
+                    # Ensure progress doesn't exceed 100
+                    progress_value = min(100, int(p.get('progress_percentage', 0)))
+                    # Only update if progress has increased
+                    if progress_value > bar.pos:
+                        bar.update(progress_value - bar.pos)
+
+                results = await asyncio.to_thread(
+                    aggregator.search_with_deduplication,
                     query=query,
                     sources=list(sources),
-                    limit=limit
+                    deduplicate=deduplicate,
+                    num_results=limit,
+                    progress_callback=progress_callback if verbose else None
                 )
-                bar.update(50)
-                
-                if deduplicate:
-                    results = await aggregator.deduplicate_results(results)
-                bar.update(100)
-            
-            # 输出结果
+                # Ensure the bar is full on completion
+                if bar.pos < 100:
+                    bar.update(100 - bar.pos)
+
+            if verbose:
+                meta = results.get('metadata', {})
+                click.echo(f"Search complete. Found {meta.get('total_results', 0)} unique articles.")
+                if meta.get('errors'):
+                    click.echo("Errors occurred:", err=True)
+                    for error in meta['errors']:
+                        click.echo(f"- {error}", err=True)
+
             if output:
                 await _save_results(results, output, format, verbose)
             else:
                 await _display_results(results, format, verbose)
                 
         except Exception as e:
-            click.echo(f"搜索失败: {str(e)}", err=True)
+            click.echo(f"Search failed: {str(e)}", err=True)
             sys.exit(1)
     
     asyncio.run(_search())
 
 @cli.command()
 @click.option('--format', '-f', type=click.Choice(['json', 'csv', 'bibtex']),
-              required=True, help='导出格式')
-@click.option('--output', '-o', required=True, help='输出文件路径')
-@click.option('--query', '-q', help='搜索查询 (导出搜索结果)')
-@click.option('--ids', help='文章ID列表 (逗号分隔)')
-@click.option('--limit', '-l', default=1000, help='导出数量限制')
+              required=True, help='Export format.')
+@click.option('--output', '-o', required=True, help='Output file path.')
+@click.option('--query', '-q', help='Search query to export results for.')
+@click.option('--ids', help='List of article IDs (comma-separated, not yet supported).')
+@click.option('--limit', '-l', default=100, help='Limit for the number of articles to export.')
 def export(format: str, output: str, query: Optional[str], 
            ids: Optional[str], limit: int):
     """
-    导出文献数据
+    Export literature data.
     
-    示例:
+    Examples:
     \b
-    # 导出搜索结果
-    python -m scripts.cli export -f json -o export.json -q "deep learning"
+    # Export search results to CSV
+    python -m scripts.cli export -f csv -o export.csv -q "deep learning"
     
-    # 导出指定文章
-    python -m scripts.cli export -f bibtex -o papers.bib --ids "1,2,3,4,5"
+    # Export specific articles by ID (not yet functional)
+    python -m scripts.cli export -f bibtex -o papers.bib --ids "1,2,3"
     """
     async def _export():
+        if ids:
+            click.echo("Exporting by ID is not yet supported as it requires a populated database.", err=True)
+            sys.exit(1)
+            
+        if format == 'bibtex':
+            click.echo("BibTeX export format is not yet implemented.", err=True)
+            sys.exit(1)
+
+        if not query:
+            click.echo("A search query (-q) is required for exporting.", err=True)
+            sys.exit(1)
+            
         try:
-            click.echo(f"开始导出数据到: {output}")
+            click.echo(f"Starting export for query: '{query}'")
+            aggregator = SearchAggregator()
             
-            # TODO: 实现导出逻辑
-            db_manager = AsyncDatabaseManager(settings.database_url)
-            
-            if ids:
-                article_ids = [int(id.strip()) for id in ids.split(',')]
-                click.echo(f"导出指定文章: {len(article_ids)} 篇")
-            elif query:
-                click.echo(f"导出搜索结果: {query}")
-            else:
-                click.echo("导出所有文章")
-            
-            # 模拟导出过程
-            with click.progressbar(length=100, label='导出中...') as bar:
-                for i in range(100):
-                    await asyncio.sleep(0.01)
-                    bar.update(1)
-            
-            click.echo(f"导出完成: {output}")
+            with click.progressbar(length=100, label='Searching and exporting...') as bar:
+                results = await asyncio.to_thread(
+                    aggregator.search_with_deduplication,
+                    query=query,
+                    deduplicate=True,
+                    num_results=limit
+                )
+                bar.update(100)
+
+            await _save_results(results, output, format, verbose=True)
             
         except Exception as e:
-            click.echo(f"导出失败: {str(e)}", err=True)
+            click.echo(f"Export failed: {str(e)}", err=True)
             sys.exit(1)
     
     asyncio.run(_export())
 
 @cli.group()
 def db():
-    """数据库管理命令"""
+    """Database management commands."""
     pass
 
 @db.command()
 def init():
-    """初始化数据库"""
+    """Initialize the database."""
     async def _init():
+        from src.database.connection import AsyncDatabaseManager
         try:
-            click.echo("初始化数据库...")
+            click.echo("Initializing database...")
             db_manager = AsyncDatabaseManager(settings.database_url)
+            # This will fail because models are not defined. We catch this to give a nice error.
             await db_manager.create_tables()
-            click.echo("数据库初始化完成")
+            click.echo("Database initialized successfully.")
         except Exception as e:
-            click.echo(f"数据库初始化失败: {str(e)}", err=True)
+            click.echo("Failed to initialize database.", err=True)
+            click.echo("Error: The database models are not yet defined in the code.", err=True)
+            click.echo(f"Details: {e}", err=True)
             sys.exit(1)
     
     asyncio.run(_init())
 
 @db.command()
 def status():
-    """检查数据库状态"""
+    """Check the database connection status."""
     async def _status():
+        from src.database.connection import AsyncDatabaseManager
         try:
-            click.echo("检查数据库连接...")
+            click.echo("Checking database connection...")
             db_manager = AsyncDatabaseManager(settings.database_url)
-            # TODO: 实现数据库状态检查
-            click.echo("数据库连接正常")
+            is_healthy = await db_manager.health_check()
+            if is_healthy:
+                click.echo("Database connection is healthy.")
+            else:
+                click.echo("Database connection failed.", err=True)
+                sys.exit(1)
         except Exception as e:
-            click.echo(f"数据库连接失败: {str(e)}", err=True)
+            click.echo(f"Database connection failed: {str(e)}", err=True)
             sys.exit(1)
     
     asyncio.run(_status())
-
-async def _save_results(results, output_path: str, format: str, verbose: bool):
-    """保存搜索结果到文件"""
-    try:
-        output_file = Path(output_path)
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        
-        if format == 'json':
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(results.dict(), f, ensure_ascii=False, indent=2)
-        elif format == 'csv':
-            # TODO: 实现CSV导出
-            pass
-        elif format == 'txt':
-            # TODO: 实现TXT导出
-            pass
-        
-        if verbose:
-            click.echo(f"结果已保存到: {output_path}")
-            
-    except Exception as e:
-        click.echo(f"保存文件失败: {str(e)}", err=True)
-
-async def _display_results(results, format: str, verbose: bool):
-    """在控制台显示搜索结果"""
-    try:
-        if format == 'json':
-            click.echo(json.dumps(results.dict(), ensure_ascii=False, indent=2))
-        else:
-            # 简化显示
-            click.echo(f"找到 {len(results.articles)} 篇文献:")
-            for i, article in enumerate(results.articles[:10], 1):
-                click.echo(f"{i}. {article.get('title', 'No title')}")
-            
-            if len(results.articles) > 10:
-                click.echo(f"... 还有 {len(results.articles) - 10} 篇文献")
-                
-    except Exception as e:
-        click.echo(f"显示结果失败: {str(e)}", err=True)
 
 if __name__ == '__main__':
     cli()

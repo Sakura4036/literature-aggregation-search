@@ -3,11 +3,11 @@
 """
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import NullPool
+from sqlalchemy import text
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 import logging
 
-from .models import Base
 from ..configs import get_settings
 
 logger = logging.getLogger(__name__)
@@ -43,6 +43,7 @@ class AsyncDatabaseManager:
     async def create_tables(self):
         """创建所有数据库表"""
         try:
+            from .models import Base
             async with self.engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
             logger.info("数据库表创建成功")
@@ -99,7 +100,7 @@ class AsyncDatabaseManager:
         """数据库健康检查"""
         try:
             async with self.get_session() as session:
-                await session.execute("SELECT 1")
+                await session.execute(text("SELECT 1"))
             return True
         except Exception as e:
             logger.error(f"数据库健康检查失败: {str(e)}")

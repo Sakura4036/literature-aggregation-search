@@ -78,6 +78,12 @@ class AppConfig(
     WOSConfig,
     StorageConfig
     ):
+    debug: bool = Field(default=False, description="Enable debug mode")
+    database_url: str = Field(
+        default="sqlite+aiosqlite:///./literature.db",
+        description="Database connection URL"
+    )
+
     model_config = SettingsConfigDict(
         # read from dotenv format config file
         env_file=".env",
@@ -100,3 +106,7 @@ class AppConfig(
 
 
 app_config = AppConfig()
+
+
+def get_settings():
+    return app_config

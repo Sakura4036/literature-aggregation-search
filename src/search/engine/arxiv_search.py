@@ -260,9 +260,14 @@ class ArxivSearchAPI(BaseSearchEngine):
             results = self._query(search_query, id_list, max_results=num_results, 
                                 sort_by=sort_by, sort_order=sort_order)
             
-            # Convert iterator to list for parsing
-            results_list = list(results)
-            
+            # Convert iterator to list for parsing, with error handling for the library's pagination bug
+            results_list = []
+            try:
+                for result in results:
+                    results_list.append(result)
+            except arxiv.UnexpectedEmptyPageError:
+                self.logger.warning("ArXiv library raised UnexpectedEmptyPageError during pagination. Proceeding with results gathered so far.")
+
             # Parse results
             parsed_results = self._parse(results_list)
 

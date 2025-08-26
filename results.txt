@@ -1,0 +1,101 @@
+Found 13 valid articles.
+====================
+
+#1: Borges Dilemma, Fundamental Laws, and Systems Biology
+  Authors: P Ao
+  Venue: arXiv (2007)
+  DOI: N/A
+  Abstract: I reason here that the known folk law in biology that there is no general law
+in biology because of exceptions is false. The (quantitative) systems biology
+offers the potential to solve the Borges Dilemma, by transcending it. There
+have already a plenty of indications on this trend.
+
+#2: Quantum Biology at the Cellular Level - elements of the research program
+  Authors: Michael Bordonaro; Vasily Ogryzko
+  Venue: arXiv (2013)
+  DOI: N/A
+  Abstract: Quantum Biology is emerging as a new field at the intersection between
+fundamental physics and biology, promising novel insights into the nature and
+origin of biological order. We discuss several elements of QBCL (Quantum
+Biology at Cellular Level), a research program designed to extend the reach of
+quantum concepts to higher than molecular levels of biological organization.
+  Key words. decoherence, macroscopic superpositions, basis-dependence, formal
+superposition, non-classical correlations, Basis-Dependent Selection (BDS),
+synthetic biology, evolvability mechanism loophole.
+
+#3: Landscape Paradigms in Physics and Biology: Introduction and Overview
+  Authors: David Sherrington
+  Venue: arXiv (1996)
+  DOI: 10.1016/S0167-2789(97)00076-6
+  Abstract: A brief introductory overview in general terms is given of concepts, issues
+and applications of the paradigm of rugged landscapes in the contexts of
+physics and biology.
+
+#4: Mathematics at the eve of a historic transition in biology
+  Authors: Guo-Wei Wei
+  Venue: arXiv (2017)
+  DOI: N/A
+  Abstract: A century ago physicists and mathematicians worked in tandem and established
+quantum mechanism. Indeed, algebras, partial differential equations, group
+theory, and functional analysis underpin the foundation of quantum mechanism.
+Currently, biology is undergoing a historic transition from qualitative,
+phenomenological and descriptive to quantitative, analytical and predictive.
+Mathematics, again, becomes a driving force behind this new transition in
+biology.
+
+#5: G-quadruplexes and mRNA localization
+  Authors: Valentina Agoni
+  Venue: arXiv (2013)
+  DOI: N/A
+  Abstract: G-quadruplexes represent a novelty for molecular biology. Their role inside
+the cell remains mysterious. We investigate a possible correlation with mRNA
+localization. In particular, we hypothesize that Gquadruplexes influence fluid
+dynamics.
+
+#6: Looking At Chromosomes
+  Authors: Brian Snoad
+  Venue: The Yale Journal of Biology and Medicine (1958)
+  DOI: N/A
+  Abstract: becomes dictionary-like, and because theoretical discussion is limited to the end of each chapter, large parts of the book might be expected to be quite dull to a student reader; therefore, it cannot be recommended as a text. For these same reasons, as previously mentioned, and because of the outstanding documentation and bibliography, the book is better adapted to the needs of the more advanced researcher or lecturer. I am afraid, however, that even he will find the book to be tedious reading and will prefer to use it as a source book for specific information. The Author, Taxonomic, and Subject Indexes are quite complete and should be of value. The photographs and drawings are of excellent quality and are admirably chosen to illustrate important points. The binding seems to be adequate at most, and does not reflect the relatively high price of the volume. The expressed aim of this attractive little book is to provide a very general introduction to chromosome structure and behavior, particularly in relation to Mendelian inheritance. The book is intended for readers who already possess a general knowledge of biology. The short textual treatment (25 pages) is organized around a closely seriated group of very fine photomicrographs of mitosis and male and female meiosis in a flowering plant, Lilium regale. In spite of this brevity, the authors succeed in lucidly presenting a considerable amount of information. Naturally so synoptic a treatment of this field is certain to produce some oversimplification, but McLeish and Snoad generally manage to avoid misleading abridgment. However, their discussion of spindle structure and formation has been abbreviated at the expense of accuracy. Furthermore, the treatment of such controversial topics as the time of chromosome and kinetochore doubling in meiosis as compared with mitosis, and the relation between chiasmata and crossing-over could have been less doctrinal with no substantial increase in length, or simply omitted. In spite of these reservations, the book can be recommended highly to those in the medical profession and to educated laymen who wish to acquaint themselves almost painlessly with some basic and important facts about chromosomes and their relation to genetics. It may be pointed out here that all the general facts and discussions are as applicable to animals as to plants. This book will also be useful in the classroom as collateral reading during the early stages of study in cytology and genetics.
+
+#7: In silico evaluation of the inhibitory potential of nucleocapsid inhibitors of SARS-CoV-2: a binding and energetic perspective
+  Authors: S. Haque; Priyesh Kumar; D. Mathkor; Farkad Bantun; Naif A. Jalal; Ahmad Mufti; Amresh Prakash; Vijay Kumar
+  Venue: Journal of Biomolecular Structure and Dynamics (2022)
+  DOI: 10.1080/07391102.2022.2146752
+  Abstract: Abstract The COVID-19 outbreak brought on by the SARS-CoV-2 virus continued to infect a sizable population worldwide. The SARS-CoV-2 nucleocapsid (N) protein is the most conserved RNA-binding structural protein and is a desirable target because of its involvement in viral transcription and replication. Based on this aspect, this study focused to repurpose antiviral compounds approved or in development for treating COVID-19. The inhibitors chosen are either FDA-approved or are currently being studied in clinical trials against COVID-19. Initially, they were designed to target stress granules and other RNA biology. We have utilized structure-based molecular docking and all-atom molecular dynamics (MD) simulation approach to investigate in detail the binding energy and binding modes of the different anti-N inhibitors to N protein. The result showed that five drugs including Silmitasterib, Ninetanidinb, Ternatin, Luteolin, Fedratinib, PJ34, and Zotatafin were found interacting with RNA binding sites as well as to predicted protein interface with higher binding energy. Overall, drug binding increases the stability of the complex with maximum stability found in the order, Silmitasertib > PJ34 > Zotatatafin. In addition, the frustration changes due to drug binding brings a decrease in local frustration and this decrease is mainly observed in α-helix, β3, β5, and β6 strands and are important for drug binding. Our in-silico data suggest that an effective interaction occurs for some of the tested drugs and prompt their further validation to reduce the rapid outspreading of SARS-CoV-2. Communicated by Ramaswamy H. Sarma
+
+#8: Multi-Sided Compression Performance Assessment of ABI SOLiD WES Data
+  Authors: T. Mazza; S. Castellana
+  Venue: Algorithms (2013)
+  DOI: 10.3390/a6020309
+  Abstract: Data storage is a major and growing part of IT budgets for research since manyyears. Especially in biology, the amount of raw data products is growing continuously,and the advent of the so-called "next-generation" sequencers has made things worse.Affordable prices have pushed scientists to massively sequence whole genomes and to screenlarge cohort of patients, thereby producing tons of data as a side effect. The need formaximally fitting data into the available storage volumes has encouraged and welcomednew compression algorithms and tools. We focus here on state-of-the-art compression toolsand measure their compression performance on ABI SOLiD data.
+
+#9: The evolution of molecular biology.
+  Authors: Eduard Kellenberger
+  Venue: EMBO reports (None)
+  DOI: 10.1038/sj.embor.7400180
+  Abstract: {'text': "Biology's various affairs with holism and reductionism, and their contribution to understanding life at the molecular level", 'structured': []}
+
+#10: Overview of Systems Biology and Omics Technologies.
+  Authors: Bensu Karahalil
+  Venue: Current medicinal chemistry (None)
+  DOI: 10.2174/0929867323666160926150617
+  Abstract: {'text': 'Traditional technologies using reductionist approach are relatively insufficient to solve problems in a biological system. Rather than a reductionist approach, systems biology uses a holistic and integrative approach to better figure out the whole process. Both qualitatively and quantitatively of biological system provide information about diseases, toxicities, therapies etc. Omics technologies, which systems biology brings, are valuable tools for comprehensive analyses. Automated DNA sequencers enabled the sequencing of genomes; microarray and mass spectrometry analysis permit global transcriptional profiling and lead to large-scale proteomic and metabolomics analysis. These high-throughput data need to be interpreted by bioinformatics. So far there has been no concrete published paper that compiles omics technologies according to PubMed database. In the present review, it was aimed to give brief description of systems biology and information on the advantages and disadvantages of omics technologies.', 'structured': []}
+
+#11: Systems biology in cardiovascular disease: a multiomics approach.
+  Authors: Abhishek Joshi; Marieke Rienks; Konstantinos Theofilatos; Manuel Mayr
+  Venue: Nature reviews. Cardiology (None)
+  DOI: 10.1016/j.tig.2010.05.001
+  Abstract: {'text': 'Omics techniques generate large, multidimensional data that are amenable to analysis by new informatics approaches alongside conventional statistical methods. Systems theories, including network analysis and machine learning, are well placed for analysing these data but must be applied with an understanding of the relevant biological and computational theories. Through applying these techniques to omics data, systems biology addresses the problems posed by the complex organization of biological processes. In this Review, we describe the techniques and sources of omics data, outline network theory, and highlight exemplars of novel approaches that combine gene regulatory and co-expression networks, proteomics, metabolomics, lipidomics and phenomics with informatics techniques to provide new insights into cardiovascular disease. The use of systems approaches will become necessary to integrate data from more than one omic technique. Although understanding the interactions between different omics data requires increasingly complex concepts and methods, we argue that hypothesis-driven investigations and independent validation must still accompany these novel systems biology approaches to realize their full potential.', 'structured': []}
+
+#12: Race biology.
+  Authors: Anssi Saura
+  Venue: Hereditas (None)
+  DOI: 10.1111/j.1601-5223.1971.tb02368.x
+  Abstract: {'text': 'The founders of Hereditas envisioned that race biology would be a major subject that had social applications with utmost importance in the near future. Anthropometrics was in this context understood to be the pure and eugenics the applied science. Sweden had a long tradition in physical anthropometry. Herman Lundborg, member of the advisory board of Hereditas, united the anthropometric and eugenic approaches in a synthesis. He was the first head of the Institute for Race Biology in Sweden. The contents of Hereditas reflect the development of race biology in the Nordic countries.', 'structured': [{'label': 'BACKGROUND', 'text': 'The founders of Hereditas envisioned that race biology would be a major subject that had social applications with utmost importance in the near future. Anthropometrics was in this context understood to be the pure and eugenics the applied science. Sweden had a long tradition in physical anthropometry. Herman Lundborg, member of the advisory board of Hereditas, united the anthropometric and eugenic approaches in a synthesis. He was the first head of the Institute for Race Biology in Sweden. The contents of Hereditas reflect the development of race biology in the Nordic countries.'}, {'label': 'CONCLUSIONS', 'text': "The initial enthusiasm for applied race biology did not last long. In the 1920's Hereditas carried papers on both physical anthropology and eugenics. Most paper dealt, however, with human genetics without eugenic content. Two papers, published in 1921 and 1939 show how the intellectual climate had changed from positive to negative. Finally only human genetics prevailed as the legitimate study of the human race or humankind. A belated defense of eugenics published in 1951 did not help; geneticists had abandoned anthropometrics for good around the year 1940 and eugenics about a decade later. In spite of that, eugenic legislation was amended astonishingly late, in the 1970's. The development was essentially similar in all Nordic countries."}]}
+
+#13: Developmental and stem cell biology's bright future.
+  Authors: Jennifer Lewis; Melina Schuh; Jacob H Hanna; Magdalena Zernicka-Goetz; Mansi Srivastava; Tao Tan; Sam Behjati; Zhen Liu; Nicoletta I Petridou; Sasha Mendjan
+  Venue: Cell (None)
+  DOI: 10.1016/j.cell.2024.05.037
+  Abstract: {'text': 'The next 50 years of developmental biology will illuminate exciting new discoveries but are also poised to provide solutions to important problems society faces. Ten scientists whose work intersects with developmental biology in various capacities tell us about their vision for the future.', 'structured': []}
