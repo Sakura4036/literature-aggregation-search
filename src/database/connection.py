@@ -8,10 +8,10 @@ from typing import AsyncGenerator
 import logging
 
 from .models import Base
-from ..configs import get_settings
+from ..configs import app_config
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
+
 
 class AsyncDatabaseManager:
     """异步数据库管理器"""
@@ -26,7 +26,7 @@ class AsyncDatabaseManager:
         self.database_url = database_url
         self.engine = create_async_engine(
             database_url,
-            echo=settings.DEBUG,  # 开发环境显示SQL
+            echo=app_config.DEBUG,  # 开发环境显示SQL
             poolclass=NullPool if "sqlite" in database_url else None,
             pool_pre_ping=True,
             pool_recycle=3600,  # 1小时回收连接
@@ -112,7 +112,7 @@ def get_db_manager() -> AsyncDatabaseManager:
     """获取全局数据库管理器实例"""
     global _db_manager
     if _db_manager is None:
-        _db_manager = AsyncDatabaseManager(settings.DATABASE_URL)
+        _db_manager = AsyncDatabaseManager(app_config.SQLALCHEMY_DATABASE_URI)
     return _db_manager
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
