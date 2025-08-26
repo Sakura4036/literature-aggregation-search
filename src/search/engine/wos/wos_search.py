@@ -1,26 +1,25 @@
+import logging
 import time
 import traceback
+from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Tuple, Optional
 
 import requests
-import logging
-from datetime import datetime, timedelta
-import threading
 
-from src.search.engine.base_engine import BaseSearchEngine, NetworkError, FormatError
-from src.search.utils import year_split
+from src.models.enums import IdentifierType, VenueType, CategoryType, PublicationTypeSource
 from src.models.schemas import (
-    LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, 
+    LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema,
     PublicationSchema, IdentifierSchema, CategorySchema, PublicationTypeSchema
 )
-from src.models.enums import IdentifierType, VenueType, CategoryType, PublicationTypeSource
+from src.search.engine.base_engine import BaseSearchEngine, NetworkError
+from src.search.utils import year_split
 from src.utils.api_key_manger import ApiKeyManager
 
 logger = logging.getLogger(__name__)
 
 
-class WOS_QUERY_TYPES(str, Enum):
+class WosQueryTypes(str, Enum):
     ALL = 'ALL'
     TITLE = 'TI'
     AUTHOR = 'AU'
@@ -30,7 +29,7 @@ class WOS_QUERY_TYPES(str, Enum):
     KEYWORDS = 'TS'
 
 
-class WOS_DOCUMENT_TYPES(str, Enum):
+class WosDocumentTypes(str, Enum):
     ARTICLE = 'Article'
     REVIEW = 'Review'
     BOOK = 'Book'
@@ -95,7 +94,7 @@ class WosSearchAPI(BaseSearchEngine):
         :param query: query string
         :param query_type: query type: TI(title), AU(author), TS(title, abstract, author keywords, keywords plus), DO(doi), IS(ISSN),  PMID(PubMed ID),
         """
-        assert query_type in [qt.value for qt in WOS_QUERY_TYPES], 'Invalid query type'
+        assert query_type in [qt.value for qt in WosQueryTypes], 'Invalid query type'
         query = "{}={}".format(query_type, self.check_query(query))
         return query
 
@@ -149,7 +148,7 @@ class WosSearchAPI(BaseSearchEngine):
                         published_date = datetime.strptime(published_date, '%Y-%m').date().isoformat()
                     else:
                         published_date = None
-                except:
+                except Exception:
                     published_date = None
 
                 format_paper = {
@@ -212,8 +211,7 @@ class WosSearchAPI(BaseSearchEngine):
                 elif response.status_code == 429:  # Too Many Requests
                     # 将当前key的使用次数设置为达到上限
                     logger.warning(f"API key {api_key} reached rate limit (429 response)")
-                    with self.key_manager._lock:
-                        self.key_manager.usage_count[api_key] = self.key_manager.daily_limit
+                    self.key_manager.set_key_max_usage(api_key)
                     continue  # 继续循环尝试下一个key
                 else:
                     logger.debug(f"Web of Science API request failed: {response.json()}")

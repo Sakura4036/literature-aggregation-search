@@ -84,6 +84,13 @@ class ApiKeyManager:
             if api_key in self.usage_count:
                 self.usage_count[api_key] += 1
 
+    def set_key_usage(self, api_key: str, usage: int):
+        with self._lock:
+            self.usage_count[api_key] = usage
+
+    def set_key_max_usage(self, api_key: str):
+        self.set_key_usage(api_key, self.limit)
+
     def reset_usage(self):
         """重置所有key的使用计数"""
         with self._lock:
