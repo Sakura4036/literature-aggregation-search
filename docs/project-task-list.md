@@ -21,15 +21,13 @@
 - [x] **XML解析 (XML Parsing)**
   - [x] PubMed XML解析器 (`src/search/pubmed_xml_parser.py`)
   - [x] 结构化数据提取
-
-### 待开发
-- [ ] **搜索聚合器开发 (Search Aggregator Development)**
+- [x] **搜索聚合器开发 (Search Aggregator Development)**
   - 描述: 实现并行搜索所有数据源的核心聚合器。
   - 文件: `src/search/aggregator.py`
-- [ ] **去重处理器 (Deduplicator)**
+- [x] **去重处理器 (Deduplicator)**
   - 描述: 基于多重标识符和模糊匹配算法去重。
   - 文件: `src/processing/deduplicator.py`
-- [ ] **数据合并器 (Data Merger)**
+- [x] **数据合并器 (Data Merger)**
   - 描述: 合并重复文献的互补信息。
   - 文件: `src/processing/merger.py`
 

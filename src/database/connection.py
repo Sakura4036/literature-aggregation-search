@@ -143,3 +143,5 @@ async def cleanup_database():
     if _db_manager:
         await _db_manager.close()
         _db_manager = None
+
+db_session = get_db_session()
