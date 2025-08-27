@@ -50,7 +50,7 @@
 ### 已完成
 - [x] **CRUD操作 (CRUD Operations)**
   - 描述: 开发用于数据操作的增删改查接口。已实现基础文献/作者/标识符服务。
-  - 文件: `src/database/services` (`article_service.py`, `author_service.py`, `identifier_service.py`)
+  - 文件: `src/database/services` (`article_service.py`, `author_service.py`, `identifier_service.py`, ...)
 
 ---
 

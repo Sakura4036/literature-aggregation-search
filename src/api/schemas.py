@@ -45,47 +45,6 @@ class SearchMetadata(BaseModel):
     duplicates_removed: int = Field(default=0, description="去重数量")
     query_timestamp: datetime = Field(default_factory=datetime.utcnow, description="查询时间")
 
-class ArticleBase(BaseModel):
-    """文章基础信息"""
-    title: str = Field(..., description="文章标题")
-    abstract: Optional[str] = Field(None, description="摘要")
-    authors: List[str] = Field(default_factory=list, description="作者列表")
-    publication_year: Optional[int] = Field(None, description="发表年份")
-    publication_date: Optional[str] = Field(None, description="发表日期")
-    doi: Optional[str] = Field(None, description="DOI")
-    pmid: Optional[str] = Field(None, description="PubMed ID")
-    arxiv_id: Optional[str] = Field(None, description="ArXiv ID")
-
-class ArticleDetail(ArticleBase):
-    """文章详细信息"""
-    id: int = Field(..., description="文章ID")
-    sources: List[str] = Field(..., description="数据源列表")
-    citation_count: int = Field(default=0, description="引用次数")
-    is_open_access: bool = Field(default=False, description="是否开放获取")
-    created_at: datetime = Field(..., description="创建时间")
-    updated_at: datetime = Field(..., description="更新时间")
-
-from datetime import date
-
-class Article(BaseModel):
-    id: int
-    primary_doi: Optional[str] = None
-    title: str
-    abstract: Optional[str] = None
-    publication_year: Optional[int] = None
-    publication_date: Optional[date] = None
-    is_open_access: bool
-    open_access_url: Optional[str] = None
-
-    class Config:
-        from_attributes = True
-
-class SearchResponse(BaseModel):
-    """搜索响应模型"""
-    status: str = Field(default="success", description="响应状态")
-    articles: List[ArticleDetail] = Field(..., description="文章列表")
-    metadata: SearchMetadata = Field(..., description="搜索元数据")
-
 class ExportRequest(BaseModel):
     """导出请求模型"""
     format: ExportFormat = Field(..., description="导出格式")
