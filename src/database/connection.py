@@ -1,5 +1,5 @@
 """
-异步数据库连接管理
+异步数据库连接管理 (函数式重构)
 """
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import NullPool
@@ -12,136 +12,93 @@ from ..configs import app_config
 
 logger = logging.getLogger(__name__)
 
+_engine = None
+_async_session_factory = None
 
-class AsyncDatabaseManager:
-    """异步数据库管理器"""
-    
-    def __init__(self, database_url: str):
-        """
-        初始化数据库管理器
-        
-        Args:
-            database_url: 数据库连接URL
-        """
-        self.database_url = database_url
-        self.engine = create_async_engine(
-            database_url,
-            echo=app_config.DEBUG,  # 开发环境显示SQL
-            poolclass=NullPool if "sqlite" in database_url else None,
-            pool_pre_ping=True,
-            pool_recycle=3600,  # 1小时回收连接
-        )
-        
-        self.async_session_factory = async_sessionmaker(
-            bind=self.engine,
-            class_=AsyncSession,
-            expire_on_commit=False,
-            autoflush=True,
-            autocommit=False
-        )
-    
-    async def create_tables(self):
-        """创建所有数据库表"""
+def setup_database_engine(database_url: str) -> None:
+    global _engine, _async_session_factory
+    if not database_url:
+        raise ValueError("数据库连接URL不能为空")
+    _engine = create_async_engine(
+        database_url,
+        echo=app_config.DEBUG,
+        poolclass=NullPool if "sqlite" in database_url else None,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+    )
+    _async_session_factory = async_sessionmaker(
+        bind=_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=True,
+        autocommit=False
+    )
+    logger.info("数据库引擎和会话工厂初始化完成")
+
+setup_database_engine(app_config.SQLALCHEMY_DATABASE_URI)
+
+@asynccontextmanager
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    if _async_session_factory is None:
+        raise RuntimeError("数据库会话工厂未初始化")
+    async with _async_session_factory() as session:
         try:
-            async with self.engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            logger.info("数据库表创建成功")
+            yield session
+            await session.commit()
         except Exception as e:
-            logger.error(f"创建数据库表失败: {str(e)}")
+            await session.rollback()
+            logger.error(f"数据库会话异常: {str(e)}")
             raise
-    
-    async def drop_tables(self):
-        """删除所有数据库表"""
+        finally:
+            await session.close()
+
+async def create_tables() -> None:
+    if _engine is None:
+        raise RuntimeError("数据库引擎未初始化")
+    try:
+        async with _engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("数据库表创建成功")
+    except Exception as e:
+        logger.error(f"创建数据库表失败: {str(e)}")
+        raise
+
+async def drop_tables() -> None:
+    if _engine is None:
+        raise RuntimeError("数据库引擎未初始化")
+    try:
+        async with _engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+        logger.info("数据库表删除成功")
+    except Exception as e:
+        logger.error(f"删除数据库表失败: {str(e)}")
+        raise
+
+async def close_database() -> None:
+    global _engine, _async_session_factory
+    if _engine:
         try:
-            async with self.engine.begin() as conn:
-                await conn.run_sync(Base.metadata.drop_all)
-            logger.info("数据库表删除成功")
-        except Exception as e:
-            logger.error(f"删除数据库表失败: {str(e)}")
-            raise
-    
-    @asynccontextmanager
-    async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
-        """
-        获取数据库会话上下文管理器
-        
-        使用示例:
-        async with db_manager.get_session() as session:
-            result = await session.execute(select(Article))
-        """
-        async with self.async_session_factory() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception:
-                await session.rollback()
-                raise
-            finally:
-                await session.close()
-    
-    async def get_session_direct(self) -> AsyncSession:
-        """
-        直接获取数据库会话 (需要手动管理)
-        
-        注意: 使用后需要手动关闭会话
-        """
-        return self.async_session_factory()
-    
-    async def close(self):
-        """关闭数据库连接"""
-        try:
-            await self.engine.dispose()
+            await _engine.dispose()
             logger.info("数据库连接已关闭")
         except Exception as e:
             logger.error(f"关闭数据库连接失败: {str(e)}")
-    
-    async def health_check(self) -> bool:
-        """数据库健康检查"""
-        try:
-            async with self.get_session() as session:
-                await session.execute("SELECT 1")
-            return True
-        except Exception as e:
-            logger.error(f"数据库健康检查失败: {str(e)}")
-            return False
+    _engine = None
+    _async_session_factory = None
 
-# 全局数据库管理器实例
-_db_manager: AsyncDatabaseManager = None
+async def health_check() -> bool:
+    try:
+        async with get_db_session() as session:
+            await session.execute("SELECT 1")
+        return True
+    except Exception as e:
+        logger.error(f"数据库健康检查失败: {str(e)}")
+        return False
 
-def get_db_manager() -> AsyncDatabaseManager:
-    """获取全局数据库管理器实例"""
-    global _db_manager
-    if _db_manager is None:
-        _db_manager = AsyncDatabaseManager(app_config.SQLALCHEMY_DATABASE_URI)
-    return _db_manager
+DbSession = get_db_session
 
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    """
-    FastAPI依赖注入函数 - 获取数据库会话
-    
-    使用示例:
-    @app.get("/articles")
-    async def get_articles(db: AsyncSession = Depends(get_db_session)):
-        result = await db.execute(select(Article))
-        return result.scalars().all()
-    """
-    db_manager = get_db_manager()
-    async with db_manager.get_session() as session:
-        yield session
-
-# 数据库初始化函数
-async def init_database():
-    """初始化数据库"""
-    db_manager = get_db_manager()
-    await db_manager.create_tables()
+async def init_database() -> None:
+    await create_tables()
     logger.info("数据库初始化完成")
 
-# 数据库清理函数
-async def cleanup_database():
-    """清理数据库连接"""
-    global _db_manager
-    if _db_manager:
-        await _db_manager.close()
-        _db_manager = None
-
-db_session = get_db_session()
+async def cleanup_database() -> None:
+    await close_database()

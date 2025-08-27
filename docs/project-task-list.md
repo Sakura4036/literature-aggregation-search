@@ -40,17 +40,17 @@
   - [x] 完整的数据库架构设计 (`docs/database_design.md`)
   - [x] 多源数据整合策略
   - [x] 去重和合并规则定义
-
-### 待开发
-- [ ] **数据模型实现 (Data Model Implementation)**
+- [x] **数据模型实现 (Data Model Implementation)**
   - 描述: 基于 `database_design.md` 实现完整的SQLAlchemy异步模型。
   - 文件: `src/database/models.py`
-- [ ] **异步数据库连接管理 (Async Database Connection Management)**
-  - 描述: 管理异步数据库引擎和会话。
+- [x] **数据库连接管理 (Database Connection Management)**
+  - 描述: 管理数据库引擎和会话。已重构为函数式、依赖注入、无类风格，符合AGENTS.md约定。
   - 文件: `src/database/connection.py`
-- [ ] **CRUD操作 (CRUD Operations)**
-  - 描述: 开发用于数据操作的增删改查接口。
-  - 文件: `src/database/operations.py`
+
+### 已完成
+- [x] **CRUD操作 (CRUD Operations)**
+  - 描述: 开发用于数据操作的增删改查接口。已实现基础文献/作者/标识符服务。
+  - 文件: `src/database/services` (`article_service.py`, `author_service.py`, `identifier_service.py`)
 
 ---
 
