@@ -12,8 +12,8 @@ import pytest
 from unittest.mock import Mock, patch
 from datetime import datetime
 
-from src.search.biorxiv_search import BioRxivSearchAPI
-from src.search.base_engine import BaseSearchEngine, NetworkError
+from src.search.engine import BioRxivSearchAPI
+from src.search.engine.base_engine import BaseSearchEngine, NetworkError
 from src.models.enums import IdentifierType, VenueType, CategoryType
 
 

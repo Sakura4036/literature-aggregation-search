@@ -108,9 +108,6 @@ class BioRxivSearchAPI(BaseSearchEngine):
             response = requests.get(url)
             if response.status_code == 200:
                 data = response.json()
-                with open("temp_biorxiv.json", 'w', encoding='utf-8') as wf:
-                    import json
-                    json.dump(data, wf, ensure_ascii=False, indent=4)
                 messages = data.get('messages', [{}])[0]
                 if messages.get('status') == 'error':
                     logger.error(f"BioRxiv API request error: {messages.get('message')}")

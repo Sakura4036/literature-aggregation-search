@@ -1,6 +1,7 @@
 import logging
 import time
 import traceback
+import requests
 
 from typing import Dict, List, Tuple, Optional
 from .model import SemanticScholarPaper, SemanticResultFormatter

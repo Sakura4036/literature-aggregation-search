@@ -5,13 +5,14 @@ This module contains comprehensive tests for the BaseSearchEngine class,
 including parameter validation, error handling, logging, and abstract method enforcement.
 """
 
-import pytest
 import logging
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
 from typing import Dict, List, Tuple
+from unittest.mock import patch
 
-from src.search.base_engine import (
+import pytest
+
+from src.search.engine.base_engine import (
     BaseSearchEngine,
     SearchError,
     ParameterValidationError,

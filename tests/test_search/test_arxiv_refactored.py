@@ -6,17 +6,16 @@ including search functionality, parameter validation, result formatting,
 and integration with the BaseSearchEngine architecture.
 """
 
-import pytest
 import json
 import os
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, date
-from typing import List, Dict
+from datetime import datetime
+from unittest.mock import Mock, patch
 
-from src.search.arxiv_search import ArxivSearchAPI, ArxivClient
-from src.search.base_engine import BaseSearchEngine, NetworkError, FormatError, ParameterValidationError
-from src.models.schemas import LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, IdentifierSchema, CategorySchema
+import pytest
+
 from src.models.enums import IdentifierType, VenueType, CategoryType
+from src.search.engine.arxiv_search import ArxivSearchAPI, ArxivClient
+from src.search.engine.base_engine import BaseSearchEngine, NetworkError
 
 
 class TestArxivSearchAPI:

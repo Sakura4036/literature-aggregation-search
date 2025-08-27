@@ -7,14 +7,13 @@ LiteratureSchema format.
 """
 
 import json
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from unittest.mock import patch
 
-from src.search.wos_search import WosSearchAPI, WosApiKeyManager
-from src.search.base_engine import BaseSearchEngine, NetworkError, FormatError
-from src.models.schemas import LiteratureSchema
+import pytest
+
 from src.models.enums import IdentifierType, VenueType, CategoryType, PublicationTypeSource
+from src.search.engine.base_engine import BaseSearchEngine, NetworkError
+from src.search.engine.wos.wos_search import WosSearchAPI, WosApiKeyManager
 
 
 class TestWosSearchAPI:
@@ -124,7 +123,7 @@ class TestWosSearchAPI:
                         'pages': {'range': '123-130'}
                     },
                     'sourceTypes': ['Article'],
-                    'links': {'record': 'http://example.com'},
+                    'links': {'record': 'https://example.com'},
                     'keywords': {'authorKeywords': ['keyword1', 'keyword2']}
                 }
             }

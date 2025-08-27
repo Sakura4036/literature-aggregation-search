@@ -5,16 +5,16 @@ This module tests the SemanticBulkSearchAPI class to ensure it properly
 inherits from BaseSearchEngine and implements the required methods.
 """
 
-import pytest
 import json
 import os
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from unittest.mock import Mock, patch
 
-from src.search.semantic_search import SemanticBulkSearchAPI, semantic_bulk_search
-from src.search.base_engine import ParameterValidationError, NetworkError, FormatError
-from src.models.schemas import LiteratureSchema
+import pytest
+from src.search.engine.semantic_scholar import SemanticBulkSearchAPI, SemanticResultFormatter
+
 from src.models.enums import IdentifierType, VenueType, CategoryType
+from src.models.schemas import LiteratureSchema
+from src.search.engine.base_engine import NetworkError, BaseSearchEngine
 
 
 class TestSemanticBulkSearchAPI:
@@ -23,6 +23,7 @@ class TestSemanticBulkSearchAPI:
     def setup_method(self):
         """Set up test fixtures."""
         self.api = SemanticBulkSearchAPI()
+        self.formater = SemanticResultFormatter()
         
         # Load real template data
         template_path = os.path.join(os.path.dirname(__file__), '..', '..', 'templates', 'temp_semantic_scholar.json')
@@ -34,7 +35,6 @@ class TestSemanticBulkSearchAPI:
     
     def test_inheritance(self):
         """Test that SemanticBulkSearchAPI properly inherits from BaseSearchEngine."""
-        from src.search.base_engine import BaseSearchEngine
         assert isinstance(self.api, BaseSearchEngine)
         assert hasattr(self.api, 'search')
         assert hasattr(self.api, '_search')
@@ -148,7 +148,7 @@ class TestSemanticBulkSearchAPI:
     
     def test_format_single_result_detailed(self):
         """Test _format_single_result method with detailed data."""
-        literature = self.api._format_single_result(self.sample_raw_result)
+        literature = self.formater._format_single_result(self.sample_raw_result)
         
         assert isinstance(literature, LiteratureSchema)
         assert literature.article.title == self.sample_raw_result['title']
@@ -182,54 +182,35 @@ class TestSemanticBulkSearchAPI:
         """Test _extract_open_access_url method."""
         # Test with dict format
         item_dict = {"openAccessPdf": {"url": "https://example.com/paper.pdf"}}
-        url = self.api._extract_open_access_url(item_dict)
+        url = self.formater._extract_open_access_url(item_dict)
         assert url == "https://example.com/paper.pdf"
         
         # Test with string format
         item_string = {"openAccessPdf": "https://example.com/paper.pdf"}
-        url = self.api._extract_open_access_url(item_string)
+        url = self.formater._extract_open_access_url(item_string)
         assert url == "https://example.com/paper.pdf"
         
         # Test with no URL
         item_none = {}
-        url = self.api._extract_open_access_url(item_none)
+        url = self.formater._extract_open_access_url(item_none)
         assert url is None
     
     def test_determine_venue_type(self):
         """Test _determine_venue_type method."""
         # Test conference
         item_conf = {"publicationVenue": {"type": "conference"}}
-        venue_type = self.api._determine_venue_type(item_conf)
+        venue_type = self.formater._determine_venue_type(item_conf)
         assert venue_type == VenueType.CONFERENCE
         
         # Test journal
         item_journal = {"journal": {"name": "Nature"}}
-        venue_type = self.api._determine_venue_type(item_journal)
+        venue_type = self.formater._determine_venue_type(item_journal)
         assert venue_type == VenueType.JOURNAL
         
         # Test other
         item_other = {}
-        venue_type = self.api._determine_venue_type(item_other)
+        venue_type = self.formater._determine_venue_type(item_other)
         assert venue_type == VenueType.OTHER
-    
-    @patch('src.search.semantic_search.SemanticBulkSearchAPI.search')
-    def test_semantic_bulk_search_function(self, mock_search):
-        """Test the semantic_bulk_search function."""
-        # Mock the search method
-        mock_search.return_value = ([{"formatted": "result"}], {"total": 1})
-        
-        results, metadata = semantic_bulk_search("machine learning", num_results=50)
-        
-        assert len(results) == 1
-        assert results[0] == {"formatted": "result"}
-        assert metadata["total"] == 1
-        mock_search.assert_called_once()
-    
-    def test_semantic_bulk_search_empty_results(self):
-        """Test semantic_bulk_search function with empty num_results."""
-        results, metadata = semantic_bulk_search("test", num_results=0)
-        assert results == []
-        assert metadata == {}
     
     @patch('src.search.semantic_search.SemanticBulkSearchAPI.search')
     def test_full_search_integration(self, mock_search):

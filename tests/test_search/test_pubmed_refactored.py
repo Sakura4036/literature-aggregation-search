@@ -6,17 +6,15 @@ including search functionality, parameter validation, result formatting,
 and integration with the BaseSearchEngine architecture.
 """
 
-import pytest
 import json
 import os
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, date
-from typing import List, Dict
+from unittest.mock import patch
 
-from src.search.pubmed_search import PubmedSearchAPI
-from src.search.base_engine import BaseSearchEngine, NetworkError, FormatError, ParameterValidationError
-from src.models.schemas import LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, IdentifierSchema
+import pytest
+from src.search.engine import PubmedSearchAPI
+
 from src.models.enums import IdentifierType, VenueType
+from src.search.engine.base_engine import BaseSearchEngine, NetworkError
 
 
 class TestPubmedSearchAPI:

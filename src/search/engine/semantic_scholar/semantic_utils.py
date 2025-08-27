@@ -1,7 +1,8 @@
-import time
 import logging
-from datetime import datetime
+import time
+
 from .model import SemanticScholarPaper, SemanticResultFormatter
+
 
 logger = logging.getLogger(__name__)
 
@@ -119,5 +120,5 @@ def semantic_recommend_search(paper_id: str, limit: int = 100, fields: str = Non
         results = response.get('recommendedPapers', [])
     except Exception as e:
         logger.error(f"SemanticRecommendApi error: {e}")
-    finally:
-        return SemanticResultFormatter().response_format(results)
+
+    return SemanticResultFormatter().response_format(results)

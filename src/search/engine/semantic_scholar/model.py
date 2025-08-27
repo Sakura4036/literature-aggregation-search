@@ -1,7 +1,6 @@
 import logging
 from dataclasses import dataclass
 from typing import Dict, List
-from .model import SemanticScholarPaper
 from src.models.enums import IdentifierType, VenueType, CategoryType, PublicationTypeSource
 from src.models.schemas import LiteratureSchema, ArticleSchema, AuthorSchema, VenueSchema, PublicationSchema, IdentifierSchema, CategorySchema, PublicationTypeSchema
 
@@ -74,7 +73,7 @@ class SemanticResultFormatter:
                 literature = self._format_single_result(item)
                 formatted_results.append(literature.to_dict())
             except Exception as e:
-                self.logger.warning(f"Error formatting result: {e}, skipping item")
+                logger.warning(f"Error formatting result: {e}, skipping item")
                 continue
         
         return formatted_results
