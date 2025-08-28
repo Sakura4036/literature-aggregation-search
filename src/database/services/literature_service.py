@@ -24,7 +24,7 @@ def article_to_literature_schema(article: Article) -> LiteratureSchema:
 
 class LiteratureService:
     @staticmethod
-    async def get_literature_by_id(id: int, id_type="article", session: AsyncSession=DbSession) -> Optional[LiteratureSchema]:
+    async def get_literature_by_id(id: int, session: AsyncSession, id_type="article",) -> Optional[LiteratureSchema]:
         match id_type.lower():
             case "article":
                 q = select(Article).where(Article.id == id)
@@ -63,7 +63,7 @@ class LiteratureService:
             raise ValueError(f"Literature validation failed: {errors}")
 
         # Create article entity
-        article_schema: ArticleSchema = await ArticleService.add_article(lit.article, session)
+        article_schema: ArticleSchema = await ArticleService.create_article(lit.article, session)
 
         # create identifiers
         for ident in lit.identifiers:

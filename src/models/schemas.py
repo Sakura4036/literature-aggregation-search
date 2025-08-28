@@ -20,6 +20,7 @@ def _is_valid_doi(doi: str) -> bool:
 
 
 class ArticleSchema(BaseModel):
+    article_id: Optional[str] = None
     primary_doi: Optional[str] = None
     title: str = ""
     abstract: Optional[str] = None

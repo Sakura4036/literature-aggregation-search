@@ -6,7 +6,7 @@
 
 ## 实施任务
 
-- [ ] 1. UUID主键转换和数据库模型重构
+- [x] 1. UUID主键转换和数据库模型重构
   - 创建UUIDMixin基类提供统一的UUID主键支持
   - 修改所有现有模型类继承UUIDMixin，将主键从Integer/BigInteger改为UUID
   - 更新所有外键引用使用UUID类型

@@ -9,7 +9,7 @@ class DeploymentConfig(BaseSettings):
 
     APPLICATION_NAME: str = Field(
         description="Name of the application, used for identification and logging purposes",
-        default="matwings/PaperAssist",
+        default="matwings/laterature-aggregation-search",
     )
 
     DEBUG: bool = Field(

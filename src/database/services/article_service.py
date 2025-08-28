@@ -46,7 +46,7 @@ class ArticleService:
         return _orm_to_schema(orm)
 
     @staticmethod
-    async def add_article(article: ArticleSchema, session: AsyncSession) -> ArticleSchema:
+    async def create_article(article: ArticleSchema, session: AsyncSession) -> ArticleSchema:
         """Create a single Article row from ArticleSchema. Validates input if a validate() method exists."""
         # optional, backward-compatible validation hook
         validator = getattr(article, "validate", None)

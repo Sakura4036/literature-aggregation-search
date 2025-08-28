@@ -55,7 +55,7 @@ class DatabaseConfig:
 
     SQLALCHEMY_DATABASE_URI_SCHEME: str = Field(
         description="Database URI scheme for SQLAlchemy connection.",
-        default="postgresql",
+        default="postgresql+asyncpg",
     )
 
     @computed_field
